@@ -19,7 +19,6 @@ func NewSimpleRESTGetter() *SimpleRESTGetter {
 
 func (g *SimpleRESTGetter) Get(url string, v interface{}) error {
 	resp, err := http.Get(url)
-
 	//we
 	if err != nil {
 		return err
@@ -60,10 +59,17 @@ func (g *RateLimitedRESTGetter) Get(url string, v interface{}) error {
 	//place a token
 	g.tokens <- true
 	defer func() {
-		time.Sleep(g.window)
-		<-g.tokens
+		go func() {
+			time.Sleep(g.window)
+			<-g.tokens
+		}()
 	}()
 
 	return g.getter.Get(url, v)
 
+}
+
+type APIEndpoint struct {
+	g      *RESTGetter
+	region Region
 }

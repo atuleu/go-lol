@@ -14,15 +14,27 @@ import (
 
 type APIKey string
 
+func (k APIKey) Check() error {
+	if len(k) == 0 {
+		return fmt.Errorf("Key is empty")
+	}
+
+	if apiKeyRx.MatchString(string(k)) == false {
+		return fmt.Errorf("Invalid API key syntax `%s'", k)
+	}
+
+	return nil
+}
+
 type APIKeyStorer interface {
-	Get() APIKey
+	Get() (APIKey, bool)
 	Store(k APIKey) error
 }
 
 type XdgAPIKeyStorer struct {
 	path string
 	lock lockfile.Lockfile
-	key  string
+	key  APIKey
 }
 
 func NewXdgAPIKeyStorer() (*XdgAPIKeyStorer, error) {
@@ -72,17 +84,16 @@ func (s *XdgAPIKeyStorer) load() error {
 		return err
 	}
 
-	s.key = strings.TrimSpace(string(data))
-
-	// Check key format validity
-	if apiKeyRx.MatchString(s.key) == false {
-		return fmt.Errorf("Invalid key syntax `%s'", s.key)
+	str := strings.TrimSpace(string(data))
+	if len(str) == 0 {
+		return nil
 	}
 
-	return nil
+	s.key = APIKey(str)
+	return s.key.Check()
 }
 
-var apiKeyRx = regexp.MustCompile(`\AA[0-9a-f]{8}\-[0-9a-f]{4}\-[0-9a-f]{4}\-[0-9a-f]{4}\-[0-9a-f]{12}\z`)
+var apiKeyRx = regexp.MustCompile(`\A[0-9a-f]{8}\-[0-9a-f]{4}\-[0-9a-f]{4}\-[0-9a-f]{4}\-[0-9a-f]{12}\z`)
 
 func (s *XdgAPIKeyStorer) save() error {
 	if err := s.lock.TryLock(); err != nil {
@@ -100,17 +111,16 @@ func (s *XdgAPIKeyStorer) save() error {
 	return err
 }
 
-func (s *XdgAPIKeyStorer) Get() APIKey {
-	return APIKey(s.key)
+func (s *XdgAPIKeyStorer) Get() (APIKey, bool) {
+	return s.key, len(s.key) > 0
 }
 
 func (s *XdgAPIKeyStorer) Store(k APIKey) error {
-	key := string(k)
-	if apiKeyRx.MatchString(key) == false {
-		return fmt.Errorf("Invalid key syntax `%s'", k)
+	if err := k.Check(); err != nil {
+		return err
 	}
 	oldKey := s.key
-	s.key = key
+	s.key = k
 	err := s.save()
 	if err != nil {
 		s.key = oldKey
