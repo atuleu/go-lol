@@ -13,6 +13,17 @@ type RESTGetter interface {
 
 type SimpleRESTGetter struct{}
 
+type RESTError struct {
+	Code int
+}
+
+func (e RESTError) Error() string {
+	if e.Code == 429 {
+		return "Too Many request to server"
+	}
+	return fmt.Sprintf("Non 200 return code: %d", e.Code)
+}
+
 func NewSimpleRESTGetter() *SimpleRESTGetter {
 	return &SimpleRESTGetter{}
 }
@@ -26,12 +37,8 @@ func (g *SimpleRESTGetter) Get(url string, v interface{}) error {
 	// we are nice, we close the Body
 	defer resp.Body.Close()
 
-	if resp.StatusCode == 429 {
-		return fmt.Errorf("Too many request to server")
-	}
-
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("Got response %d", resp.StatusCode)
+		return RESTError{Code: resp.StatusCode}
 	}
 
 	dec := json.NewDecoder(resp.Body)

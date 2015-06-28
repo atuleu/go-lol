@@ -2,7 +2,6 @@ package lol
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -24,36 +23,18 @@ type Summoner struct {
 	Level        uint32           `json:"summonerLevel"`
 }
 
-type SummonerAPI struct {
-	g      RESTGetter
-	region *Region
-	key    APIKey
-}
-
-func NewSummonerAPI(g RESTGetter, region *Region, key APIKey) *SummonerAPI {
-	return &SummonerAPI{
-		g:      g,
-		region: region,
-		key:    key,
-	}
-}
-
-func (a *SummonerAPI) GetSummonerByName(names []string) ([]Summoner, error) {
+func (a *APIRegionalEndpoint) GetSummonerByName(names []string) ([]Summoner, error) {
 	if len(names) > 40 {
 		return nil, fmt.Errorf("Cannot checkout more than 40 IDs")
 	}
+	if len(names) == 0 {
+		return nil, fmt.Errorf("You need to provide a Summoner name")
+	}
 
-	res := make(map[string]Summoner, 40)
+	res := make(map[string]Summoner, len(names))
 
-	url := fmt.Sprintf("https://%s/api/lol/%s/v1.4/summoner/by-name/%s?api_key=%s",
-		a.region.url,
-		a.region.code,
-		strings.Join(names, ","),
-		a.key)
-
-	log.Printf("url is:%s\n", url)
-
-	err := a.g.Get(url, &res)
+	err := a.Get(fmt.Sprintf("/v1.4/summoner/by-name/%s", strings.Join(names, ",")),
+		nil, &res)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +47,7 @@ func (a *SummonerAPI) GetSummonerByName(names []string) ([]Summoner, error) {
 
 }
 
-func (a *SummonerAPI) GetSummonerNames(ids []SummonerID) (map[SummonerID]string, error) {
+func (a *APIRegionalEndpoint) GetSummonerNames(ids []SummonerID) (map[SummonerID]string, error) {
 	if len(ids) > 40 {
 		return nil, fmt.Errorf("cannot checkout more than 40 Summoner name at once")
 	}
@@ -76,21 +57,12 @@ func (a *SummonerAPI) GetSummonerNames(ids []SummonerID) (map[SummonerID]string,
 
 	res := make(map[string]string, len(ids))
 
-	idsStr := fmt.Sprintf("%d", ids[0])
-	for i, id := range ids {
-		if i == 0 {
-			continue
-		}
-		idsStr = fmt.Sprintf("%s,%d", idsStr, id)
+	idsStr := make([]string, 0, len(ids))
+	for _, id := range ids {
+		idsStr = append(idsStr, strconv.FormatInt(int64(id), 10))
 	}
 
-	url := fmt.Sprintf("https://%s/api/lol/%s/v1.4/summoner/%s/name?api_key=%s",
-		a.region.url,
-		a.region.code,
-		idsStr,
-		a.key)
-
-	err := a.g.Get(url, &res)
+	err := a.g.Get(fmt.Sprint("/v1.4/summoner/%s/name", strings.Join(idsStr, ",")), &res)
 	if err != nil {
 		return nil, err
 	}
