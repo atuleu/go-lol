@@ -17,8 +17,8 @@ type CurrentGame struct {
 	GameLength int64  `json:"GameLength"`
 
 	Participants []struct {
-		Id   SummonerID `json:"summonerId`
-		Name string     `json:"summonerName`
+		Id   SummonerID `json:"summonerId"`
+		Name string     `json:"summonerName"`
 	} `json:"participants"`
 
 	Observer struct {

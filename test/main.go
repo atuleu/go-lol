@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"time"
 
 	lol ".."
 )
@@ -30,36 +28,14 @@ func Execute() error {
 
 	api := lol.NewAPIRegionalEndpoint(region, key)
 
-	summoners, err := api.GetSummonerByName([]string{"YakaVerkyll"})
+	fgames, err := api.GetFeaturedGames()
 	if err != nil {
 		return err
 	}
 
-	if len(summoners) != 1 {
-		return fmt.Errorf("Invalid response size!")
-	}
-	//display matches
-
-	games, err := api.GetSummonerRecentGames(summoners[0].Id)
-	if err != nil {
-		return err
-	}
-
-	for _, g := range games {
-		log.Printf("%s", g)
-	}
-
-	for {
-		cg, err := api.GetCurrentGame(summoners[0].Id)
-		if err != nil {
-			return err
-		}
-		if cg == nil {
-			log.Printf("User is not in game")
-		} else {
-			log.Printf("User is in game: %v", cg)
-		}
-		time.Sleep(10 * time.Second)
+	log.Printf("%d", fgames.RefrehInterval)
+	for i, g := range fgames.Games {
+		log.Printf("%d: {%s}", i, g)
 	}
 
 	return nil

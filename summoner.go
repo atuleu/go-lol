@@ -62,7 +62,7 @@ func (a *APIRegionalEndpoint) GetSummonerNames(ids []SummonerID) (map[SummonerID
 		idsStr = append(idsStr, strconv.FormatInt(int64(id), 10))
 	}
 
-	err := a.g.Get(fmt.Sprint("/v1.4/summoner/%s/name", strings.Join(idsStr, ",")), &res)
+	err := a.g.Get(fmt.Sprintf("/v1.4/summoner/%s/name", strings.Join(idsStr, ",")), &res)
 	if err != nil {
 		return nil, err
 	}
