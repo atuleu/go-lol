@@ -1,6 +1,10 @@
 package lol
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+	"time"
+)
 
 type CurrentGame struct {
 	BannedChampion []struct {
@@ -40,4 +44,13 @@ func (a *APIRegionalEndpoint) GetCurrentGame(id SummonerID) (*CurrentGame, error
 		return res, fmt.Errorf("Could not get current game infor for %d: %s", id, err)
 	}
 	return res, nil
+}
+
+func (g CurrentGame) String() string {
+	participantName := make([]string, 0, len(g.Participants))
+	for _, v := range g.Participants {
+		participantName = append(participantName, v.Name)
+	}
+	res := fmt.Sprintf("GameID:%d GameLength:%s Participants:[%s]", g.Id, time.Duration(g.GameLength)*time.Second, strings.Join(participantName, " , "))
+	return res
 }

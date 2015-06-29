@@ -49,7 +49,7 @@ func Execute() error {
 		log.Printf("%s", g)
 	}
 
-	for i := 0; i < 10; i++ {
+	for {
 		cg, err := api.GetCurrentGame(summoners[0].Id)
 		if err != nil {
 			return err
