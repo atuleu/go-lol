@@ -13,4 +13,4 @@ generate-test-data:
 	make -C test-data-fetcher
 	mkdir -p data
 	./test-data-fetcher/test-data-fetcher -k $(API_KEY) -o data/go-lol_testdata.json
-	go-bindata -o testdata_test.go data
+	go-bindata -pkg="lol" -o testdata_test.go data
