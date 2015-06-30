@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"strings"
+
+	lol ".."
 )
 
 type APIName string
@@ -39,41 +41,40 @@ var APIVersions = map[APIName]string{
 	Team:          "2.4",
 }
 
-var teamIds = []string{
-	"TEAM-ae23cae0-32dd-11e4-9ce8-c81f66dba0e7",
-	"TEAM-2d06b2b0-1ab3-11e5-885f-c81f66dd7106",
-	"TEAM-85a717f0-1cef-11e5-85a3-c81f66dd7106",
-	"TEAM-e4de4220-50a3-11e4-8eee-c81f66db96d8",
+var data = lol.RESTStaticData{
+	TeamIDs: []string{
+		"TEAM-ae23cae0-32dd-11e4-9ce8-c81f66dba0e7",
+		"TEAM-2d06b2b0-1ab3-11e5-885f-c81f66dd7106",
+		"TEAM-85a717f0-1cef-11e5-85a3-c81f66dd7106",
+		"TEAM-e4de4220-50a3-11e4-8eee-c81f66db96d8",
+	},
+	SummonerNames: []string{
+		"YellowStar",
+		"Papa Schultzz",
+		"Froggen",
+		"Arkanoum",
+		"DominGod",
+	},
+	SummonerIDs: []string{
+		"20637495",
+		"214132",
+		"19531813",
+		"50805989",
+		"245111",
+	},
+	ChampionIDs: []string{
+		"102",
+		"103",
+	},
+	GameIDs: []string{
+		"2178836472",
+	},
+	RegionCode: "euw",
+	Key:        "00000000-0000-0000-0000-00000000000",
 }
 
-var summonerNames = []string{
-	"YellowStar",
-	"Papa Schultzz",
-	"Froggen",
-	"Arkanoum",
-	"DominGod",
-}
-
-var summonerIds = []string{
-	"20637495",
-	"214132",
-	"19531813",
-	"50805989",
-	"245111",
-}
-
-var championIds = []string{
-	"102",
-	"103",
-}
-
-var gameIds = []string{
-	"2178836472",
-}
-
-var regionCode = "euw"
-var regionPrefix = "euw.api.pvp.net"
-var platformId = "EUW1"
+var regionPrefix := "https://euw.api.pvp.net"
+var regionPlatformId := "EUW1"
 
 type RequestGenerator func(args ...string) string
 type RequestArgs []string
@@ -89,8 +90,7 @@ var APIRequests = map[APIName][]Requests{
 				return fmt.Sprintf("/api/lol/%s/v%s/champion/%s", args)
 			},
 			args: []RequestArgs{
-				RequestArgs{regionCode, APIVersions[Champion], championIds[0]},
-				RequestArgs{regionCode, APIVersions[Champion], championIds[1]},
+				RequestArgs{data.RegionCode, APIVersions[Champion], data.ChampionIDs[0]},
 			},
 		},
 	},
@@ -110,7 +110,7 @@ var APIRequests = map[APIName][]Requests{
 				return fmt.Sprintf("/api/lol/%s/v%s/game/by-summoner/%d/recent", args)
 			},
 			args: []RequestArgs{
-				RequestArgs{regionCode, APIVersions[Game], summonerIds[0]},
+				RequestArgs{data.RegionCode, APIVersions[Game], data.SummonerIDs[0]},
 			},
 		},
 	},
@@ -120,7 +120,7 @@ var APIRequests = map[APIName][]Requests{
 				return fmt.Sprintf("/api/lol/%s/v%s/league/master", args)
 			},
 			args: []RequestArgs{
-				RequestArgs{regionCode, APIVersions[League]},
+				RequestArgs{data.RegionCode, APIVersions[League]},
 			},
 		},
 		Requests{
@@ -128,8 +128,8 @@ var APIRequests = map[APIName][]Requests{
 				return fmt.Sprintf("/api/lol/%s/v%s/league/by-team/%s/entry", args)
 			},
 			args: []RequestArgs{
-				RequestArgs{regionCode, APIVersions[League], teamIds[0]},
-				RequestArgs{regionCode, APIVersions[League], strings.Join(teamIds, ",")},
+				RequestArgs{data.RegionCode, APIVersions[League], data.TeamIDs[0]},
+				RequestArgs{data.RegionCode, APIVersions[League], strings.Join(data.TeamIDs, ",")},
 			},
 		},
 		Requests{
@@ -137,7 +137,7 @@ var APIRequests = map[APIName][]Requests{
 				return fmt.Sprintf("/api/lol/%s/v%s/league/challenger", args)
 			},
 			args: []RequestArgs{
-				RequestArgs{regionCode, APIVersions[League]},
+				RequestArgs{data.RegionCode, APIVersions[League]},
 			},
 		},
 		Requests{
@@ -145,8 +145,8 @@ var APIRequests = map[APIName][]Requests{
 				return fmt.Sprintf("/api/lol/%s/v%s/league/by-team/%s", args)
 			},
 			args: []RequestArgs{
-				RequestArgs{regionCode, APIVersions[League], teamIds[0]},
-				RequestArgs{regionCode, APIVersions[League], strings.Join(teamIds, ",")},
+				RequestArgs{data.RegionCode, APIVersions[League], data.TeamIDs[0]},
+				RequestArgs{data.RegionCode, APIVersions[League], strings.Join(data.TeamIDs, ",")},
 			},
 		},
 		Requests{
@@ -154,8 +154,8 @@ var APIRequests = map[APIName][]Requests{
 				return fmt.Sprintf("/api/lol/%s/v%s/league/by-summoner/%s", args)
 			},
 			args: []RequestArgs{
-				RequestArgs{regionCode, APIVersions[League], summonerIds[0]},
-				RequestArgs{regionCode, APIVersions[League], strings.Join(summonerIds, ",")},
+				RequestArgs{data.RegionCode, APIVersions[League], data.SummonerIDs[0]},
+				RequestArgs{data.RegionCode, APIVersions[League], strings.Join(data.SummonerIDs, ",")},
 			},
 		},
 		Requests{
@@ -163,8 +163,8 @@ var APIRequests = map[APIName][]Requests{
 				return fmt.Sprintf("/api/lol/%s/v%s/league/by-summoner/%s/entry", args)
 			},
 			args: []RequestArgs{
-				RequestArgs{regionCode, APIVersions[League], summonerIds[0]},
-				RequestArgs{regionCode, APIVersions[League], strings.Join(summonerIds, ",")},
+				RequestArgs{data.RegionCode, APIVersions[League], data.SummonerIDs[0]},
+				RequestArgs{data.RegionCode, APIVersions[League], strings.Join(data.SummonerIDs, ",")},
 			},
 		},
 	},
@@ -174,8 +174,8 @@ var APIRequests = map[APIName][]Requests{
 				return fmt.Sprintf("/api/lol/%s/v%s/match/%s%s")
 			},
 			args: []RequestArgs{
-				RequestArgs{regionCode, APIVersions[Match], gameIds[0], ""},
-				RequestArgs{regionCode, APIVersions[Match], gameIds[0], "?includeTimeline=true"},
+				RequestArgs{data.RegionCode, APIVersions[Match], data.GameIDs[0], ""},
+				RequestArgs{data.RegionCode, APIVersions[Match], data.GameIDs[0], "?includeTimeline=true"},
 			},
 		},
 	},
@@ -185,8 +185,8 @@ var APIRequests = map[APIName][]Requests{
 				return fmt.Sprintf("/api/lol/%s/v%s/matchhistory/%s%s")
 			},
 			args: []RequestArgs{
-				RequestArgs{regionCode, APIVersions[MatchHistory], summonerIds[0], ""},
-				RequestArgs{regionCode, APIVersions[MatchHistory], summonerIds[0], "?championIds=102,103&rankedQueues=RANKED_SOLO_5x5,RANKED_TEAM_5x5,RANKED_TEAM_3x3&beginIndex=0&endIndex=0"},
+				RequestArgs{data.RegionCode, APIVersions[MatchHistory], data.SummonerIDs[0], ""},
+				RequestArgs{data.RegionCode, APIVersions[MatchHistory], data.SummonerIDs[0], "?championIds=102,103&rankedQueues=RANKED_SOLO_5x5,RANKED_TEAM_5x5,RANKED_TEAM_3x3&beginIndex=0&endIndex=0"},
 			},
 		},
 	},
@@ -196,8 +196,8 @@ var APIRequests = map[APIName][]Requests{
 				return fmt.Sprintf("/api/lol/%s/v%s/stats/by-summoner/%s/ranked%s")
 			},
 			args: []RequestArgs{
-				RequestArgs{regionCode, APIVersions[Stats], summonerIds[0], ""},
-				RequestArgs{regionCode, APIVersions[Stats], summonerIds[0], "?season=SEASON2015"},
+				RequestArgs{data.RegionCode, APIVersions[Stats], data.SummonerIDs[0], ""},
+				RequestArgs{data.RegionCode, APIVersions[Stats], data.SummonerIDs[0], "?season=SEASON2015"},
 			},
 		},
 		Requests{
@@ -205,8 +205,8 @@ var APIRequests = map[APIName][]Requests{
 				return fmt.Sprintf("/api/lol/%s/v%s/stats/by-summoner/%s/summary%s")
 			},
 			args: []RequestArgs{
-				RequestArgs{regionCode, APIVersions[Stats], summonerIds[0], ""},
-				RequestArgs{regionCode, APIVersions[Stats], summonerIds[0], "?season=SEASON2015"},
+				RequestArgs{data.RegionCode, APIVersions[Stats], data.SummonerIDs[0], ""},
+				RequestArgs{data.RegionCode, APIVersions[Stats], data.SummonerIDs[0], "?season=SEASON2015"},
 			},
 		},
 	},
@@ -216,8 +216,8 @@ var APIRequests = map[APIName][]Requests{
 				return fmt.Sprintf("/api/lol/%s/v%s/summoner/by-name/%s")
 			},
 			args: []RequestArgs{
-				RequestArgs{regionCode, APIVersions[Summoner], summonerNames[0]},
-				RequestArgs{regionCode, APIVersions[Summoner], strings.Join(summonerNames, ",")},
+				RequestArgs{data.RegionCode, APIVersions[Summoner], data.SummonerNames[0]},
+				RequestArgs{data.RegionCode, APIVersions[Summoner], strings.Join(data.SummonerNames, ",")},
 			},
 		},
 		Requests{
@@ -225,8 +225,8 @@ var APIRequests = map[APIName][]Requests{
 				return fmt.Sprintf("/api/lol/%s/v%s/summoner/%s/name")
 			},
 			args: []RequestArgs{
-				RequestArgs{regionCode, APIVersions[Summoner], summonerIds[0]},
-				RequestArgs{regionCode, APIVersions[Summoner], strings.Join(summonerIds, ",")},
+				RequestArgs{data.RegionCode, APIVersions[Summoner], data.SummonerIDs[0]},
+				RequestArgs{data.RegionCode, APIVersions[Summoner], strings.Join(data.SummonerIDs, ",")},
 			},
 		},
 		Requests{
@@ -234,8 +234,8 @@ var APIRequests = map[APIName][]Requests{
 				return fmt.Sprintf("/api/lol/%s/v%s/summoner/%s/runes")
 			},
 			args: []RequestArgs{
-				RequestArgs{regionCode, APIVersions[Summoner], summonerIds[0]},
-				RequestArgs{regionCode, APIVersions[Summoner], strings.Join(summonerIds, ",")},
+				RequestArgs{data.RegionCode, APIVersions[Summoner], data.SummonerIDs[0]},
+				RequestArgs{data.RegionCode, APIVersions[Summoner], strings.Join(data.SummonerIDs, ",")},
 			},
 		},
 		Requests{
@@ -243,8 +243,8 @@ var APIRequests = map[APIName][]Requests{
 				return fmt.Sprintf("/api/lol/%s/v%s/summoner/%s/masteries")
 			},
 			args: []RequestArgs{
-				RequestArgs{regionCode, APIVersions[Summoner], summonerIds[0]},
-				RequestArgs{regionCode, APIVersions[Summoner], strings.Join(summonerIds, ",")},
+				RequestArgs{data.RegionCode, APIVersions[Summoner], data.SummonerIDs[0]},
+				RequestArgs{data.RegionCode, APIVersions[Summoner], strings.Join(data.SummonerIDs, ",")},
 			},
 		},
 		Requests{
@@ -252,8 +252,8 @@ var APIRequests = map[APIName][]Requests{
 				return fmt.Sprintf("/api/lol/%s/v%s/summoner/%s")
 			},
 			args: []RequestArgs{
-				RequestArgs{regionCode, APIVersions[Summoner], summonerIds[0]},
-				RequestArgs{regionCode, APIVersions[Summoner], strings.Join(summonerIds, ",")},
+				RequestArgs{data.RegionCode, APIVersions[Summoner], data.SummonerIDs[0]},
+				RequestArgs{data.RegionCode, APIVersions[Summoner], strings.Join(data.SummonerIDs, ",")},
 			},
 		},
 	},
@@ -263,8 +263,8 @@ var APIRequests = map[APIName][]Requests{
 				return fmt.Sprintf("/api/lol/%s/v%s/team/%s", args)
 			},
 			args: []RequestArgs{
-				RequestArgs{regionCode, APIVersions[Team], teamIds[0]},
-				RequestArgs{regionCode, APIVersions[Team], strings.Join(teamIds, ",")},
+				RequestArgs{data.RegionCode, APIVersions[Team], data.TeamIDs[0]},
+				RequestArgs{data.RegionCode, APIVersions[Team], strings.Join(data.TeamIDs, ",")},
 			},
 		},
 		Requests{
@@ -272,20 +272,38 @@ var APIRequests = map[APIName][]Requests{
 				return fmt.Sprintf("/api/lol/%s/v%s/team/by-summoner/%s", args)
 			},
 			args: []RequestArgs{
-				RequestArgs{regionCode, APIVersions[Team], summonerIds[0]},
-				RequestArgs{regionCode, APIVersions[Team], strings.Join(summonerIds, ",")},
+				RequestArgs{data.RegionCode, APIVersions[Team], data.SummonerIDs[0]},
+				RequestArgs{data.RegionCode, APIVersions[Team], strings.Join(data.SummonerIDs, ",")},
 			},
 		},
 	},
 }
 
+func PopulateAPI(a APIName, requests []Requests) error {
+	log.Printf("Will fetch %d request type from %s-%s", len(requests), api, APIVersions[api])
+	for _,req := range requests {
+		for _, a := range req.args {
+			
+		}
+	}
+}
+
 func Execute() error {
 
+	for api, requests := range APIRequest {
+		PopulateAPI(api, requests)
+	}
+
+	//steps
+	// 1. fetch all from the api endpoint
+	// 2. save it to the output file
+
+	return nil
 }
 
 func main() {
 	if err := Execute(); err != nil {
-		log.Printf("Got unhabdled error: %s", err)
+		log.Printf("Got unhandled error: %s", err)
 		os.Exit(1)
 	}
 }

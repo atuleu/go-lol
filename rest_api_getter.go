@@ -77,18 +77,19 @@ func (g *RateLimitedRESTGetter) Get(url string, v interface{}) error {
 
 }
 
-type RestStaticData struct {
-	TeamIds           []string
+type RESTStaticData struct {
+	TeamIDs           []string
 	SummonerNames     []string
 	SummonerIDs       []string
 	ChampionIDs       []string
 	GameIDs           []string
 	RegionCode        string
+	Key               APIKey
 	ResponseByRequest map[string][]byte
 }
 
 type RESTStaticGetter struct {
-	data RestStaticData
+	data RESTStaticData
 }
 
 func NewRESTStaticGetter(data []byte) (*RESTStaticGetter, error) {
@@ -99,7 +100,7 @@ func NewRESTStaticGetter(data []byte) (*RESTStaticGetter, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(res.data.TeamIds) < 2 {
+	if len(res.data.TeamIDs) < 2 {
 		return nil, fmt.Errorf("Incomplete team data")
 	}
 
@@ -138,11 +139,11 @@ func (g *RESTStaticGetter) Get(url string, v interface{}) error {
 }
 
 func (g *RESTStaticGetter) ATeamID() string {
-	return g.data.TeamIds[0]
+	return g.data.TeamIDs[0]
 }
 
 func (g *RESTStaticGetter) SeveralTeamIDs() []string {
-	return g.data.TeamIds
+	return g.data.TeamIDs
 }
 
 func (g *RESTStaticGetter) ASummonerName() string {
@@ -175,4 +176,12 @@ func (g *RESTStaticGetter) AGameID() string {
 
 func (g *RESTStaticGetter) SeveralGameIDs() []string {
 	return g.data.GameIDs
+}
+
+func (g *RESTStaticGetter) RegionCode() string {
+	return g.data.RegionCode
+}
+
+func (g *RESTStaticGetter) Key() APIKey {
+	return g.data.Key
 }
