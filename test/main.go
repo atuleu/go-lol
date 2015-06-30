@@ -1,10 +1,38 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	lol ".."
 )
+
+type GameMetadata struct {
+	GameKey struct {
+		Id         GameID `json:"gameId"`
+		PlatformId string `json: "platformId"`
+	} `json:"gameKey"`
+	GameServerAddress         string            `json:"gameServerAddress"`
+	Port                      int               `json:"port"`
+	EncryptionKey             string            `json:"encryptionKey"`
+	ChunkTimeInterval         time.Milliseconds `json:"chunkTimeInterval"`
+	StartTime                 time.Time         `json:"startTime"`
+	LastChunkId               int               `json:"lastChunkId"`
+	LastKeyFrameId            int               `json:"lastKeyFrameId"`
+	EndStartupChunkId         int               `json:"endStartupChunkId"`
+	DelayTime                 time.Milliseconds `json: "delayTime"`
+	PendingAvailableChunkInfo []struct {
+		Id           int
+		Duration     time.Milliseconds
+		ReceivedTime time.Time
+	}
+	PendingAvailableKeyFrameInfo []struct {
+		Id           int
+		ReceivedTime time.Time
+		NextChunkId  int
+	}
+	KeyFrameInterval time.Milliseconds
+}
 
 func Execute() error {
 	storer, err := lol.NewXdgAPIKeyStorer()
@@ -33,12 +61,13 @@ func Execute() error {
 		return err
 	}
 
-	log.Printf("%d", fgames.RefrehInterval)
-	for i, g := range fgames.Games {
-		log.Printf("%d: {%s}", i, g)
+	if len(fgames.Games) == 0 {
+		return fmt.Errorf("No featured games available")
 	}
 
-	return nil
+	dl, err := lol.NewReplayDownloader(region)
+	return dl.Download(fgames.Games[0].Id)
+
 }
 
 func main() {

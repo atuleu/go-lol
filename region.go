@@ -20,71 +20,84 @@ const (
 )
 
 type Region struct {
-	platformId string
-	code       string
-	url        string
+	platformId   string
+	code         string
+	url          string
+	spectatorUrl string
 }
 
 var regionByID = map[RegionID]*Region{
 	BR: &Region{
-		platformId: "BR1",
-		code:       "br",
-		url:        "br.api.pvp.net",
+		platformId:   "BR1",
+		code:         "br",
+		url:          "br.api.pvp.net",
+		spectatorUrl: "spectator.br.lol.riotgames.com",
 	},
 	EUNE: &Region{
-		platformId: "EUN1",
-		code:       "eune",
-		url:        "eune.api.pvp.net",
+		platformId:   "EUN1",
+		code:         "eune",
+		url:          "eune.api.pvp.net",
+		spectatorUrl: "spectator.eu.lol.riotgames.com:8088",
 	},
 	EUW: &Region{
-		platformId: "EUW1",
-		code:       "euw",
-		url:        "euw.api.pvp.net",
+		platformId:   "EUW1",
+		code:         "euw",
+		url:          "euw.api.pvp.net",
+		spectatorUrl: "spectator.euw1.lol.riotgames.com",
 	},
 	KR: &Region{
-		platformId: "KR1",
-		code:       "kr",
-		url:        "kr.api.pvp.net",
+		platformId:   "KR1",
+		code:         "kr",
+		url:          "kr.api.pvp.net",
+		spectatorUrl: "spectator.kr.lol.riotgames.com",
 	},
 	LAN: &Region{
-		platformId: "LA1",
-		code:       "lan",
-		url:        "lan.api.pvp.net",
+		platformId:   "LA1",
+		code:         "lan",
+		url:          "lan.api.pvp.net",
+		spectatorUrl: "spectator.la1.lol.riotgames.com",
 	},
 	LAS: &Region{
-		platformId: "LA2",
-		code:       "las",
-		url:        "las.api.pvp.net",
+		platformId:   "LA2",
+		code:         "las",
+		url:          "las.api.pvp.net",
+		spectatorUrl: "spectator.la2.lol.riotgames.com",
 	},
 	NA: &Region{
-		platformId: "NA1",
-		code:       "na",
-		url:        "na.api.pvp.net",
+		platformId:   "NA1",
+		code:         "na",
+		url:          "na.api.pvp.net",
+		spectatorUrl: "spectator.na.lol.riotgames.com",
 	},
 	OCE: &Region{
-		platformId: "OC1",
-		code:       "oce",
-		url:        "oce.api.pvp.net",
+		platformId:   "OC1",
+		code:         "oce",
+		url:          "oce.api.pvp.net",
+		spectatorUrl: "spectator.oc1.lol.riotgames.com",
 	},
 	TR: &Region{
-		platformId: "TR1",
-		code:       "tr",
-		url:        "tr.api.pvp.net",
+		platformId:   "TR1",
+		code:         "tr",
+		url:          "tr.api.pvp.net",
+		spectatorUrl: "spectator.tr.lol.riotgames.com",
 	},
 	RU: &Region{
-		platformId: "RU1",
-		code:       "ru",
-		url:        "ru.api.pvp.net",
+		platformId:   "RU1",
+		code:         "ru",
+		url:          "ru.api.pvp.net",
+		spectatorUrl: "spectator.ru.lol.riotgames.com",
 	},
 	PBE: &Region{
-		platformId: "PBE1",
-		code:       "pbe",
-		url:        "pbe.api.pvp.net",
+		platformId:   "PBE1",
+		code:         "pbe",
+		url:          "pbe.api.pvp.net",
+		spectatorUrl: "spectator.pbe1.lol.riotgames.com:8088",
 	},
 	GLOBAL: &Region{
-		platformId: "",
-		code:       "global",
-		url:        "global.api.pvp.net",
+		platformId:   "",
+		code:         "global",
+		url:          "global.api.pvp.net",
+		spectatorUrl: "",
 	},
 }
 
