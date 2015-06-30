@@ -12,26 +12,40 @@ type GameMetadata struct {
 		Id         GameID `json:"gameId"`
 		PlatformId string `json: "platformId"`
 	} `json:"gameKey"`
-	GameServerAddress         string            `json:"gameServerAddress"`
-	Port                      int               `json:"port"`
-	EncryptionKey             string            `json:"encryptionKey"`
-	ChunkTimeInterval         time.Milliseconds `json:"chunkTimeInterval"`
-	StartTime                 time.Time         `json:"startTime"`
-	LastChunkId               int               `json:"lastChunkId"`
-	LastKeyFrameId            int               `json:"lastKeyFrameId"`
-	EndStartupChunkId         int               `json:"endStartupChunkId"`
-	DelayTime                 time.Milliseconds `json: "delayTime"`
+
+	GameServerAddress string            `json:"gameServerAddress"`
+	Port              int               `json:"port"`
+	EncryptionKey     string            `json:"encryptionKey"`
+	ChunkTimeInterval time.Milliseconds `json:"chunkTimeInterval"`
+	StartTime         time.Time         `json:"startTime"`
+	LastChunkId       int               `json:"lastChunkId"`
+	LastKeyFrameId    int               `json:"lastKeyFrameId"`
+	EndStartupChunkId int               `json:"endStartupChunkId"`
+	DelayTime         time.Milliseconds `json: "delayTime"`
+
 	PendingAvailableChunkInfo []struct {
-		Id           int
-		Duration     time.Milliseconds
-		ReceivedTime time.Time
-	}
+		Id           int               `json:"id"`
+		Duration     time.Milliseconds `json:"duration"`
+		ReceivedTime time.Time         `json:"receivedTime"`
+	} `json:"pendingAvailableChunkInfo"`
+
 	PendingAvailableKeyFrameInfo []struct {
-		Id           int
-		ReceivedTime time.Time
-		NextChunkId  int
-	}
-	KeyFrameInterval time.Milliseconds
+		Id           int       `json:"id"`
+		ReceivedTime time.Time `json:"receivedTime"`
+		NextChunkId  int       `json:"nextChunkId"`
+	} `json:"pendingAvailableKeyFrameInfo"`
+
+	KeyFrameInterval          time.Milliseconds
+	DecodedEncryptionKey      string            `json:"decodedEncryptionKey"`
+	StartGameChunkId          int               `json:"startGameChunkId"`
+	ClientAddedLag            time.Milliseconds `json:"clientAddedLag"`
+	ClientBackFetchingEnabled bool              `json:"clientBackFetchingEnabled"`
+	ClientBackFetchingFreq    int               `json:"clientBackFetchingFreq"`
+	InterestScore             int               `json:"interestScore"`
+	FeaturedGame              bool              `json:"featuredGame"`
+	CreateTime                time.Time         `json:"createTime"`
+	EndGameChunkId            int               `json:"endGameChunkId"`
+	EndGameKeyFrameId         int               `json:"endGameKeyFrameId"`
 }
 
 func Execute() error {
