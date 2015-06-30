@@ -1,10 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/jessevdk/go-flags"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	lol ".."
 )
@@ -42,6 +47,7 @@ var APIVersions = map[APIName]string{
 }
 
 var data = lol.RESTStaticData{
+	ResponseByRequest: make(map[string][]byte),
 	TeamIDs: []string{
 		"TEAM-ae23cae0-32dd-11e4-9ce8-c81f66dba0e7",
 		"TEAM-2d06b2b0-1ab3-11e5-885f-c81f66dd7106",
@@ -73,8 +79,8 @@ var data = lol.RESTStaticData{
 	Key:        "00000000-0000-0000-0000-00000000000",
 }
 
-var regionPrefix := "https://euw.api.pvp.net"
-var regionPlatformId := "EUW1"
+var regionPrefix = "https://euw.api.pvp.net"
+var regionPlatformId = "EUW1"
 
 type RequestGenerator func(args ...string) string
 type RequestArgs []string
@@ -83,11 +89,19 @@ type Requests struct {
 	args []RequestArgs
 }
 
+func ToIF(strs []string) []interface{} {
+	res := make([]interface{}, 0, len(strs))
+	for _, s := range strs {
+		res = append(res, s)
+	}
+	return res
+}
+
 var APIRequests = map[APIName][]Requests{
 	Champion: []Requests{
 		Requests{
 			gen: func(args ...string) string {
-				return fmt.Sprintf("/api/lol/%s/v%s/champion/%s", args)
+				return fmt.Sprintf("/api/lol/%s/v%s/champion/%s", ToIF(args)...)
 			},
 			args: []RequestArgs{
 				RequestArgs{data.RegionCode, APIVersions[Champion], data.ChampionIDs[0]},
@@ -107,7 +121,7 @@ var APIRequests = map[APIName][]Requests{
 	Game: []Requests{
 		Requests{
 			gen: func(args ...string) string {
-				return fmt.Sprintf("/api/lol/%s/v%s/game/by-summoner/%d/recent", args)
+				return fmt.Sprintf("/api/lol/%s/v%s/game/by-summoner/%s/recent", ToIF(args)...)
 			},
 			args: []RequestArgs{
 				RequestArgs{data.RegionCode, APIVersions[Game], data.SummonerIDs[0]},
@@ -117,7 +131,7 @@ var APIRequests = map[APIName][]Requests{
 	League: []Requests{
 		Requests{
 			gen: func(args ...string) string {
-				return fmt.Sprintf("/api/lol/%s/v%s/league/master", args)
+				return fmt.Sprintf("/api/lol/%s/v%s/league/master", ToIF(args)...)
 			},
 			args: []RequestArgs{
 				RequestArgs{data.RegionCode, APIVersions[League]},
@@ -125,7 +139,7 @@ var APIRequests = map[APIName][]Requests{
 		},
 		Requests{
 			gen: func(args ...string) string {
-				return fmt.Sprintf("/api/lol/%s/v%s/league/by-team/%s/entry", args)
+				return fmt.Sprintf("/api/lol/%s/v%s/league/by-team/%s/entry", ToIF(args)...)
 			},
 			args: []RequestArgs{
 				RequestArgs{data.RegionCode, APIVersions[League], data.TeamIDs[0]},
@@ -134,7 +148,7 @@ var APIRequests = map[APIName][]Requests{
 		},
 		Requests{
 			gen: func(args ...string) string {
-				return fmt.Sprintf("/api/lol/%s/v%s/league/challenger", args)
+				return fmt.Sprintf("/api/lol/%s/v%s/league/challenger", ToIF(args)...)
 			},
 			args: []RequestArgs{
 				RequestArgs{data.RegionCode, APIVersions[League]},
@@ -142,7 +156,7 @@ var APIRequests = map[APIName][]Requests{
 		},
 		Requests{
 			gen: func(args ...string) string {
-				return fmt.Sprintf("/api/lol/%s/v%s/league/by-team/%s", args)
+				return fmt.Sprintf("/api/lol/%s/v%s/league/by-team/%s", ToIF(args)...)
 			},
 			args: []RequestArgs{
 				RequestArgs{data.RegionCode, APIVersions[League], data.TeamIDs[0]},
@@ -151,7 +165,7 @@ var APIRequests = map[APIName][]Requests{
 		},
 		Requests{
 			gen: func(args ...string) string {
-				return fmt.Sprintf("/api/lol/%s/v%s/league/by-summoner/%s", args)
+				return fmt.Sprintf("/api/lol/%s/v%s/league/by-summoner/%s", ToIF(args)...)
 			},
 			args: []RequestArgs{
 				RequestArgs{data.RegionCode, APIVersions[League], data.SummonerIDs[0]},
@@ -160,7 +174,7 @@ var APIRequests = map[APIName][]Requests{
 		},
 		Requests{
 			gen: func(args ...string) string {
-				return fmt.Sprintf("/api/lol/%s/v%s/league/by-summoner/%s/entry", args)
+				return fmt.Sprintf("/api/lol/%s/v%s/league/by-summoner/%s/entry", ToIF(args)...)
 			},
 			args: []RequestArgs{
 				RequestArgs{data.RegionCode, APIVersions[League], data.SummonerIDs[0]},
@@ -171,7 +185,7 @@ var APIRequests = map[APIName][]Requests{
 	Match: []Requests{
 		Requests{
 			gen: func(args ...string) string {
-				return fmt.Sprintf("/api/lol/%s/v%s/match/%s%s")
+				return fmt.Sprintf("/api/lol/%s/v%s/match/%s%s", ToIF(args)...)
 			},
 			args: []RequestArgs{
 				RequestArgs{data.RegionCode, APIVersions[Match], data.GameIDs[0], ""},
@@ -182,7 +196,7 @@ var APIRequests = map[APIName][]Requests{
 	MatchHistory: []Requests{
 		Requests{
 			gen: func(args ...string) string {
-				return fmt.Sprintf("/api/lol/%s/v%s/matchhistory/%s%s")
+				return fmt.Sprintf("/api/lol/%s/v%s/matchhistory/%s%s", ToIF(args)...)
 			},
 			args: []RequestArgs{
 				RequestArgs{data.RegionCode, APIVersions[MatchHistory], data.SummonerIDs[0], ""},
@@ -193,7 +207,7 @@ var APIRequests = map[APIName][]Requests{
 	Stats: []Requests{
 		Requests{
 			gen: func(args ...string) string {
-				return fmt.Sprintf("/api/lol/%s/v%s/stats/by-summoner/%s/ranked%s")
+				return fmt.Sprintf("/api/lol/%s/v%s/stats/by-summoner/%s/ranked%s", ToIF(args)...)
 			},
 			args: []RequestArgs{
 				RequestArgs{data.RegionCode, APIVersions[Stats], data.SummonerIDs[0], ""},
@@ -202,7 +216,7 @@ var APIRequests = map[APIName][]Requests{
 		},
 		Requests{
 			gen: func(args ...string) string {
-				return fmt.Sprintf("/api/lol/%s/v%s/stats/by-summoner/%s/summary%s")
+				return fmt.Sprintf("/api/lol/%s/v%s/stats/by-summoner/%s/summary%s", ToIF(args)...)
 			},
 			args: []RequestArgs{
 				RequestArgs{data.RegionCode, APIVersions[Stats], data.SummonerIDs[0], ""},
@@ -213,7 +227,8 @@ var APIRequests = map[APIName][]Requests{
 	Summoner: []Requests{
 		Requests{
 			gen: func(args ...string) string {
-				return fmt.Sprintf("/api/lol/%s/v%s/summoner/by-name/%s")
+				return fmt.Sprintf("/api/lol/%s/v%s/summoner/by-name/%s", ToIF(args)...)
+
 			},
 			args: []RequestArgs{
 				RequestArgs{data.RegionCode, APIVersions[Summoner], data.SummonerNames[0]},
@@ -222,7 +237,7 @@ var APIRequests = map[APIName][]Requests{
 		},
 		Requests{
 			gen: func(args ...string) string {
-				return fmt.Sprintf("/api/lol/%s/v%s/summoner/%s/name")
+				return fmt.Sprintf("/api/lol/%s/v%s/summoner/%s/name", ToIF(args)...)
 			},
 			args: []RequestArgs{
 				RequestArgs{data.RegionCode, APIVersions[Summoner], data.SummonerIDs[0]},
@@ -231,7 +246,7 @@ var APIRequests = map[APIName][]Requests{
 		},
 		Requests{
 			gen: func(args ...string) string {
-				return fmt.Sprintf("/api/lol/%s/v%s/summoner/%s/runes")
+				return fmt.Sprintf("/api/lol/%s/v%s/summoner/%s/runes", ToIF(args)...)
 			},
 			args: []RequestArgs{
 				RequestArgs{data.RegionCode, APIVersions[Summoner], data.SummonerIDs[0]},
@@ -240,7 +255,7 @@ var APIRequests = map[APIName][]Requests{
 		},
 		Requests{
 			gen: func(args ...string) string {
-				return fmt.Sprintf("/api/lol/%s/v%s/summoner/%s/masteries")
+				return fmt.Sprintf("/api/lol/%s/v%s/summoner/%s/masteries", ToIF(args)...)
 			},
 			args: []RequestArgs{
 				RequestArgs{data.RegionCode, APIVersions[Summoner], data.SummonerIDs[0]},
@@ -249,7 +264,7 @@ var APIRequests = map[APIName][]Requests{
 		},
 		Requests{
 			gen: func(args ...string) string {
-				return fmt.Sprintf("/api/lol/%s/v%s/summoner/%s")
+				return fmt.Sprintf("/api/lol/%s/v%s/summoner/%s", ToIF(args)...)
 			},
 			args: []RequestArgs{
 				RequestArgs{data.RegionCode, APIVersions[Summoner], data.SummonerIDs[0]},
@@ -260,7 +275,7 @@ var APIRequests = map[APIName][]Requests{
 	Team: []Requests{
 		Requests{
 			gen: func(args ...string) string {
-				return fmt.Sprintf("/api/lol/%s/v%s/team/%s", args)
+				return fmt.Sprintf("/api/lol/%s/v%s/team/%s", ToIF(args)...)
 			},
 			args: []RequestArgs{
 				RequestArgs{data.RegionCode, APIVersions[Team], data.TeamIDs[0]},
@@ -269,7 +284,7 @@ var APIRequests = map[APIName][]Requests{
 		},
 		Requests{
 			gen: func(args ...string) string {
-				return fmt.Sprintf("/api/lol/%s/v%s/team/by-summoner/%s", args)
+				return fmt.Sprintf("/api/lol/%s/v%s/team/by-summoner/%s", ToIF(args)...)
 			},
 			args: []RequestArgs{
 				RequestArgs{data.RegionCode, APIVersions[Team], data.SummonerIDs[0]},
@@ -279,27 +294,85 @@ var APIRequests = map[APIName][]Requests{
 	},
 }
 
-func PopulateAPI(a APIName, requests []Requests) error {
+var sem = make(chan bool, 10)
+
+func PopulateAPI(api APIName, requests []Requests) error {
 	log.Printf("Will fetch %d request type from %s-%s", len(requests), api, APIVersions[api])
-	for _,req := range requests {
+	for _, req := range requests {
 		for _, a := range req.args {
-			
+			uri := req.gen([]string(a)...)
+			var url string
+			if strings.ContainsRune(uri, '?') == true {
+				url = fmt.Sprintf("%s%s&api_key=", regionPrefix, uri)
+			} else {
+				url = fmt.Sprintf("%s%s?api_key=", regionPrefix, uri)
+			}
+
+			sem <- true // pushing a token
+			log.Printf("Will try to get %s", url)
+			resp, err := http.Get(url + string(opts.ApiKey))
+			defer func() {
+				go func() {
+					time.Sleep(10 * time.Second)
+					<-sem
+				}()
+			}()
+
+			if err != nil {
+				return err
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != 200 {
+				return fmt.Errorf("Got non 200 code: %s", resp.StatusCode)
+			}
+
+			data.ResponseByRequest[url+string(data.Key)], err = ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return err
+			}
+
 		}
 	}
+	return nil
 }
 
 func Execute() error {
+	opts.OutputFile = "go-lol_testdata.json"
 
-	for api, requests := range APIRequest {
-		PopulateAPI(api, requests)
+	if _, err := flags.Parse(&opts); err != nil {
+		return err
+	}
+
+	if err := opts.ApiKey.Check(); err != nil {
+		return err
 	}
 
 	//steps
 	// 1. fetch all from the api endpoint
+
+	for api, requests := range APIRequests {
+		PopulateAPI(api, requests)
+	}
+
 	// 2. save it to the output file
 
-	return nil
+	f, err := os.Create(opts.OutputFile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	enc := json.NewEncoder(f)
+
+	return enc.Encode(data)
 }
+
+type Options struct {
+	ApiKey     lol.APIKey `short:"k" long:"key" description:"API Key to access riot API" required:"true"`
+	OutputFile string     `short:"o" long:"output" description:"output file"`
+}
+
+var opts Options
 
 func main() {
 	if err := Execute(); err != nil {
