@@ -1,6 +1,7 @@
 package lol
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -76,7 +77,102 @@ func (g *RateLimitedRESTGetter) Get(url string, v interface{}) error {
 
 }
 
-type APIEndpoint struct {
-	g      *RESTGetter
-	region Region
+type RestStaticData struct {
+	TeamIds           []string
+	SummonerNames     []string
+	SummonerIDs       []string
+	ChampionIDs       []string
+	GameIDs           []string
+	RegionCode        string
+	ResponseByRequest map[string][]byte
+}
+
+type RESTStaticGetter struct {
+	data RestStaticData
+}
+
+func NewRESTStaticGetter(data []byte) (*RESTStaticGetter, error) {
+	r := bytes.NewReader(data)
+	dec := json.NewDecoder(r)
+	res := &RESTStaticGetter{}
+	err := dec.Decode(&(res.data))
+	if err != nil {
+		return nil, err
+	}
+	if len(res.data.TeamIds) < 2 {
+		return nil, fmt.Errorf("Incomplete team data")
+	}
+
+	if len(res.data.SummonerNames) < 2 || len(res.data.SummonerIDs) < 2 || len(res.data.SummonerIDs) != len(res.data.SummonerNames) {
+		return nil, fmt.Errorf("Incompletes summoner data")
+	}
+
+	if len(res.data.ChampionIDs) < 2 {
+		return nil, fmt.Errorf("Incomplete champions IDs")
+	}
+
+	if len(res.data.GameIDs) < 2 {
+		return nil, fmt.Errorf("Incomplete Game IDs")
+	}
+
+	if len(res.data.RegionCode) == 0 {
+		return nil, fmt.Errorf("missing region code")
+	}
+
+	if len(res.data.ResponseByRequest) == 0 {
+		return nil, fmt.Errorf("missing static request")
+	}
+
+	return res, nil
+}
+
+func (g *RESTStaticGetter) Get(url string, v interface{}) error {
+	_, ok := g.data.ResponseByRequest[url]
+	if ok == false {
+		return RESTError{Code: 404}
+	}
+	r := bytes.NewReader(g.data.ResponseByRequest[url])
+	dec := json.NewDecoder(r)
+
+	return dec.Decode(v)
+}
+
+func (g *RESTStaticGetter) ATeamID() string {
+	return g.data.TeamIds[0]
+}
+
+func (g *RESTStaticGetter) SeveralTeamIDs() []string {
+	return g.data.TeamIds
+}
+
+func (g *RESTStaticGetter) ASummonerName() string {
+	return g.data.SummonerNames[0]
+}
+
+func (g *RESTStaticGetter) SeveralSummonerNames() []string {
+	return g.data.SummonerNames
+}
+
+func (g *RESTStaticGetter) ASummonerID() string {
+	return g.data.SummonerIDs[0]
+}
+
+func (g *RESTStaticGetter) SeveralSummonerIDs() []string {
+	return g.data.SummonerIDs
+}
+
+func (g *RESTStaticGetter) AChampionID() string {
+	return g.data.ChampionIDs[0]
+}
+
+func (g *RESTStaticGetter) SeveralChampionIDs() []string {
+	return g.data.SummonerIDs
+}
+
+func (g *RESTStaticGetter) AGameID() string {
+	return g.data.GameIDs[0]
+}
+
+func (g *RESTStaticGetter) SeveralGameIDs() []string {
+	return g.data.GameIDs
 }
