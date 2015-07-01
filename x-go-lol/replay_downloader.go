@@ -48,5 +48,16 @@ func (d *ReplayDownloader) Download(id GameID) error {
 	json.Indent(&out, data, "", "  ")
 	log.Printf("%s", out.Bytes())
 
+	//now we get the data, we should in a loop :
+	//1. getLastChunkInfo
+	//2. compute from it next time there will be chunk available
+	//3. get All Chunk and Keyframe available
+	//4. if last chunk is available, downlaod it and break to 6
+	//5. wait until specified time, repeat from 1
+	//6. Compute the metadata data to connect from game starting 0:00
+
+	//to serve, we should :
+	//serve getMetaData, making it believe that
+
 	return nil
 }
