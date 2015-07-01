@@ -6,7 +6,7 @@ import (
 )
 
 type APIRegionalEndpoint struct {
-	g      *RateLimitedRESTGetter
+	g      RESTGetter
 	region *Region
 	key    APIKey
 }
