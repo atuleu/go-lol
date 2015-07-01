@@ -3,7 +3,10 @@
 Go binding for the official Riot Games League of Legend
 [API](https://developer.riotgames.com)
 
+## License
 
+This software is Licensed under GPL version 3. A copy of the license
+can be found in the file LICENSE
 
 ## Disclaimer
 
