@@ -17,18 +17,19 @@ func (s EpochMillisecond) ToTime() time.Time {
 }
 
 type Summoner struct {
-	Name         string           `json:"name"`
-	Id           SummonerID       `json:"id"`
-	RevisionDate EpochMillisecond `json:"revisionDate"`
-	Level        uint32           `json:"summonerLevel"`
+	Id            SummonerID       `json:"id"`
+	Name          string           `json:"name"`
+	ProfileIconId int              `json:"profileIconId"`
+	Level         uint32           `json:"summonerLevel"`
+	RevisionDate  EpochMillisecond `json:"revisionDate"`
 }
 
 func (a *APIRegionalEndpoint) GetSummonerByName(names []string) ([]Summoner, error) {
 	if len(names) > 40 {
-		return nil, fmt.Errorf("Cannot checkout more than 40 IDs")
+		return nil, fmt.Errorf("Cannot checkout more than 40 IDs, %d requested", len(names))
 	}
 	if len(names) == 0 {
-		return nil, fmt.Errorf("You need to provide a Summoner name")
+		return nil, fmt.Errorf("You need to provide at least one Summoner name")
 	}
 
 	res := make(map[string]Summoner, len(names))
@@ -49,10 +50,10 @@ func (a *APIRegionalEndpoint) GetSummonerByName(names []string) ([]Summoner, err
 
 func (a *APIRegionalEndpoint) GetSummonerNames(ids []SummonerID) (map[SummonerID]string, error) {
 	if len(ids) > 40 {
-		return nil, fmt.Errorf("cannot checkout more than 40 Summoner name at once")
+		return nil, fmt.Errorf("Cannot checkout more than 40 Summoner names, got %d", len(ids))
 	}
 	if len(ids) == 0 {
-		return nil, fmt.Errorf("You need to provide an ID")
+		return nil, fmt.Errorf("Need at least one Summoner ID")
 	}
 
 	res := make(map[string]string, len(ids))
@@ -62,7 +63,7 @@ func (a *APIRegionalEndpoint) GetSummonerNames(ids []SummonerID) (map[SummonerID
 		idsStr = append(idsStr, strconv.FormatInt(int64(id), 10))
 	}
 
-	err := a.g.Get(fmt.Sprintf("/v1.4/summoner/%s/name", strings.Join(idsStr, ",")), &res)
+	err := a.Get(fmt.Sprintf("/v1.4/summoner/%s/name", strings.Join(idsStr, ",")), nil, &res)
 	if err != nil {
 		return nil, err
 	}
