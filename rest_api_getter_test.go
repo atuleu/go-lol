@@ -134,8 +134,6 @@ func init() {
 		panic(fmt.Sprintf("Could not parse static data: %s", err))
 	}
 
-	fmt.Printf("Region code is %s\n", getter.RegionCode())
-
 	regionTest, err = NewRegionByCode(getter.RegionCode())
 	if err != nil {
 		panic(err)

@@ -10,7 +10,7 @@ type CurrentGame struct {
 	BannedChampion []struct {
 		Champion ChampionID `json:"championId"`
 		PickTurn int        `json:"pickTurn"`
-		Team     TeamID     `json:"teamID"`
+		Team     int        `json:"teamID"`
 	} `json:"bannedChampions"`
 
 	Id         GameID `json:"gameId"`
