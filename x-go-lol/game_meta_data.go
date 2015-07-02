@@ -2,6 +2,20 @@ package xlol
 
 import lol ".."
 
+// ChunkInfo are information about chunk
+type ChunkInfo struct {
+	ID           ChunkID    `json:"id"`
+	Duration     DurationMs `json:"duration"`
+	ReceivedTime LolTime    `json:"receivedTime"`
+}
+
+// KeyFrameInfo are information about KeyFrame
+type KeyFrameInfo struct {
+	ID           KeyFrameID `json:"id"`
+	ReceivedTime LolTime    `json:"receivedTime"`
+	NextChunkID  ChunkID    `json:"nextChunkId"`
+}
+
 // GameMetadata represents a game metadata for downloading / replaying it
 type GameMetadata struct {
 	GameKey struct {
@@ -19,17 +33,8 @@ type GameMetadata struct {
 	EndStartupChunkID int        `json:"endStartupChunkId"`
 	DelayTime         DurationMs `json:"delayTime"`
 
-	PendingAvailableChunkInfo []struct {
-		ID           int        `json:"id"`
-		Duration     DurationMs `json:"duration"`
-		ReceivedTime LolTime    `json:"receivedTime"`
-	} `json:"pendingAvailableChunkInfo"`
-
-	PendingAvailableKeyFrameInfo []struct {
-		ID           int     `json:"id"`
-		ReceivedTime LolTime `json:"receivedTime"`
-		NextChunkID  int     `json:"nextChunkId"`
-	} `json:"pendingAvailableKeyFrameInfo"`
+	PendingAvailableChunkInfo    []ChunkInfo    `json:"pendingAvailableChunkInfo"`
+	PendingAvailableKeyFrameInfo []KeyFrameInfo `json:"pendingAvailableKeyFrameInfo"`
 
 	KeyFrameInterval          DurationMs
 	DecodedEncryptionKey      string     `json:"decodedEncryptionKey"`

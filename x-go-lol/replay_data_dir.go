@@ -110,3 +110,7 @@ func (r *replayDataDir) chunkPath(id ChunkID) string {
 func (r *replayDataDir) keyFramePath(id KeyFrameID) string {
 	return path.Join(r.gamedir, "keyframes", fmt.Sprintf("%d", id))
 }
+
+func (r *replayDataDir) managerDataPath() string {
+	return path.Join(r.gamedir, "manager.json")
+}
