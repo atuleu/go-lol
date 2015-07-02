@@ -127,3 +127,15 @@ func init() {
 		regionByCode[r.code] = r
 	}
 }
+
+func (r *Region) Code() string {
+	return r.code
+}
+
+func (r *Region) PlatformID() string {
+	return r.platformId
+}
+
+func (r *Region) SpectatorUrl() string {
+	return r.spectatorUrl
+}

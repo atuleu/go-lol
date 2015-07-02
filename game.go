@@ -4,6 +4,10 @@ import "fmt"
 
 type GameID uint64 //this is a 64 bit, EUW reached limit of int32 EUW > NA !
 
+func (g GameID) String() string {
+	return fmt.Sprintf("%d", g)
+}
+
 type Game struct {
 	Id         GameID           `json:"gameId"`
 	Invalid    bool             `json:"invalid"`
