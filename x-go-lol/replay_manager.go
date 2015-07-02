@@ -19,7 +19,7 @@ import (
 // A ReplayDownloader is able to Download (spectate) a game currently
 // played on a LoL server.
 type ReplayDownloader interface {
-	Download(region *lol.Region, id lol.GameID) error
+	Download(region *lol.Region, id lol.GameID, encryptionKey string) error
 }
 
 // A ReplayHandler is able to server over HTTP a game, as if it would
@@ -354,7 +354,7 @@ func (d *managerLocalData) UnmarshalJSON(text []byte) error {
 
 // Download fetches from the lol spectator server data of a game
 // identified by its region and ID, and save it on the local hardrive
-func (m *LocalManager) Download(region *lol.Region, id lol.GameID) error {
+func (m *LocalManager) Download(region *lol.Region, id lol.GameID, encryptionKey string) error {
 	d, err := newReplayDataDir(m.datadir, region, id)
 	if err != nil {
 		return err
@@ -379,6 +379,7 @@ func (m *LocalManager) Download(region *lol.Region, id lol.GameID) error {
 	nextKeyframeToDownload := 0
 
 	maData := newManagerLocalData()
+	maData.EncryptionKey = encryptionKey
 
 	for {
 		var metadata GameMetadata

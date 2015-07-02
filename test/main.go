@@ -42,7 +42,7 @@ func Execute() error {
 	}
 
 	dl, err := xlol.NewLocalManager(path.Join(os.TempDir(), "go-lol"))
-	return dl.Download(region, fgames.Games[0].ID)
+	return dl.Download(region, fgames.Games[0].ID, fgames.Games[0].Observer.EncryptionKey)
 
 }
 
