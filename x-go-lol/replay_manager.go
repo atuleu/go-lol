@@ -3,9 +3,7 @@ package xlol
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -450,24 +448,6 @@ func (m *LocalManager) Download(region *lol.Region, id lol.GameID, encryptionKey
 		return err
 	}
 	defer f.Close()
-	resp, err := http.Get(api.Format(EndOfGameStats, NullParam))
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return lol.RESTError{Code: resp.StatusCode}
-	}
 
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	var buf bytes.Buffer
-	err = json.Indent(&buf, data, "", "  ")
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(f, "%s", buf.String())
-	return nil
+	return api.ReadAll(EndOfGameStats, NullParam, f)
 }
