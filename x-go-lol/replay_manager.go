@@ -3,6 +3,7 @@ package xlol
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -20,16 +21,16 @@ type ReplayDownloader interface {
 	Download(region *lol.Region, id lol.GameID, encryptionKey string) error
 }
 
-// A ReplayHandler is able to server over HTTP a game, as if it would
+// A ReplayGetHandler is able to server over HTTP a game, as if it would
 // be on a LoL server.
-type ReplayHandler interface {
-	ServeHTTP(http.ResponseWriter, *http.Request)
+type ReplayGetHandler interface {
+	GetHandler(region *lol.Region, id lol.GameID) (http.Handler, string, error)
 }
 
 // A ReplayManager is both a ReplayHandler and a ReplayDownloader
 type ReplayManager interface {
 	ReplayDownloader
-	ReplayHandler
+	ReplayGetHandler
 }
 
 // A LocalManager is a ReplayManager that store its data in a
@@ -456,4 +457,8 @@ func (m *LocalManager) Download(region *lol.Region, id lol.GameID, encryptionKey
 // finished, and returns their GameMetadata, organiszed by regions
 func (m *LocalManager) AvailableReplay() (map[string][]GameMetadata, error) {
 	return m.datadir.allFinishedReplays()
+}
+
+func (m *LocalManager) GetHandler(region *lol.Region, id lol.GameID) (http.Handler, string, error) {
+	return nil, "", fmt.Errorf("Not yet implemented")
 }
