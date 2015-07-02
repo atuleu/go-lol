@@ -451,3 +451,9 @@ func (m *LocalManager) Download(region *lol.Region, id lol.GameID, encryptionKey
 
 	return api.ReadAll(EndOfGameStats, NullParam, f)
 }
+
+// AvailableReplay parses all available replay on hardrive that are
+// finished, and returns their GameMetadata, organiszed by regions
+func (m *LocalManager) AvailableReplay() (map[string][]GameMetadata, error) {
+	return m.datadir.allFinishedReplays()
+}

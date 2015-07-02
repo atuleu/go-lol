@@ -161,3 +161,11 @@ func (r *Region) PlatformID() string {
 func (r *Region) SpectatorURL() string {
 	return r.spectatorURL
 }
+
+func AllDynamicRegion() []*Region {
+	res := make([]*Region, 0, len(regionByID))
+	for _, r := range regionByCode {
+		res = append(res, r)
+	}
+	return res
+}

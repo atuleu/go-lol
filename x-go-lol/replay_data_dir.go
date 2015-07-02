@@ -1,9 +1,13 @@
 package xlol
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
+	"regexp"
+	"sort"
 
 	lol ".."
 )
@@ -51,6 +55,79 @@ func (d *replaysDataDir) ensureUserWritableDirectory(path string) error {
 	}
 
 	return nil
+}
+
+type gameMetadataList []GameMetadata
+
+func (l gameMetadataList) Len() int {
+	return len(l)
+}
+
+func (l gameMetadataList) Less(i, j int) bool {
+	return l[i].GameKey.ID < l[j].GameKey.ID
+}
+
+func (l gameMetadataList) Swap(i, j int) {
+	l[j], l[i] = l[i], l[j]
+}
+
+func (d *replaysDataDir) allFinishedReplays() (map[string][]GameMetadata, error) {
+	rx := regexp.MustCompile(`\A[0-9]+\z`)
+	res := make(map[string][]GameMetadata)
+	for _, r := range lol.AllDynamicRegion() {
+
+		regionPath := path.Join(d.basedir, r.PlatformID())
+		info, err := os.Stat(regionPath)
+		if err != nil {
+			if os.IsNotExist(err) == true {
+				continue
+			}
+			return nil, err
+		}
+		if info.IsDir() == false {
+			return nil, fmt.Errorf("%s is not a directory", regionPath)
+		}
+
+		infos, err := ioutil.ReadDir(regionPath)
+		resRegion := make([]GameMetadata, 0, len(infos))
+		for _, finfo := range infos {
+			if finfo.IsDir() == false {
+				continue
+			}
+			if rx.MatchString(finfo.Name()) == false {
+				continue
+			}
+
+			_, err := os.Stat(path.Join(regionPath, finfo.Name(), endOfGameFile))
+			if err != nil {
+				if os.IsNotExist(err) == true {
+					continue
+				}
+				return nil, err
+			}
+
+			f, err := os.Open(path.Join(regionPath, finfo.Name(), metaDataFile))
+			if err != nil {
+				return nil, err
+			}
+			defer f.Close()
+			dec := json.NewDecoder(f)
+			var gm GameMetadata
+			err = dec.Decode(&gm)
+			if err != nil {
+				return nil, err
+			}
+
+			resRegion = append(resRegion, gm)
+
+		}
+
+		//sort resRegion
+		sort.Sort(sort.Reverse(gameMetadataList(resRegion)))
+
+		res[r.Code()] = resRegion
+	}
+	return res, nil
 }
 
 const (
