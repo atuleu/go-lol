@@ -41,7 +41,7 @@ func Execute() error {
 		return fmt.Errorf("No featured games available")
 	}
 
-	dl, err := xlol.NewReplayDownloader(path.Join(os.TempDir(), "go-lol"))
+	dl, err := xlol.NewLocalManager(path.Join(os.TempDir(), "go-lol"))
 	return dl.Download(region, fgames.Games[0].ID)
 
 }

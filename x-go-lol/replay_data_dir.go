@@ -54,8 +54,8 @@ func (d *replaysDataDir) ensureUserWritableDirectory(path string) error {
 }
 
 const (
-	metaDataFile string = "metadata.json"
-	endOfGame           = "endofgame.json"
+	metaDataFile  string = "metadata.json"
+	endOfGameFile string = "endofgame.json"
 )
 
 type replayDataDir struct {
@@ -99,8 +99,8 @@ func (r *replayDataDir) metaDataPath() string {
 	return path.Join(r.gamedir, metaDataFile)
 }
 
-func (r *replayDataDir) endOfGameDataPath(region *lol.Region, id lol.GameID) string {
-	return path.Join(r.gamedir, metaDataFile)
+func (r *replayDataDir) endOfGameDataPath() string {
+	return path.Join(r.gamedir, endOfGameFile)
 }
 
 func (r *replayDataDir) chunkPath(id ChunkID) string {
