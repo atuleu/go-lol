@@ -75,9 +75,9 @@ func (m *LocalManager) Download(region *lol.Region, id lol.GameID) error {
 		return err
 	}
 
-	api := &SpectateAPI{
-		region: region,
-		id:     id,
+	api, err := NewSpectateAPI(region, id)
+	if err != nil {
+		return err
 	}
 
 	var metadata GameMetadata

@@ -39,6 +39,19 @@ const (
 	EndOfGameStats SpectateFunction = "endOfGameStats"
 )
 
+// NewSpectateAPI creates a new API endpoint dedicated to get data for
+// the specified game (from lol.Region and lol.GameID)
+func NewSpectateAPI(region *lol.Region, id lol.GameID) (*SpectateAPI, error) {
+	if len(region.PlatformID()) == 0 || len(region.SpectatorURL()) == 0 {
+		return nil, fmt.Errorf("Invalid static region")
+	}
+
+	return &SpectateAPI{
+		region: region,
+		id:     id,
+	}, nil
+}
+
 // Format formats an URL appropriately for the API
 func (a *SpectateAPI) Format(function SpectateFunction, param int) string {
 	if param != NullParam {
