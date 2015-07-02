@@ -5,21 +5,26 @@ import (
 	"time"
 )
 
-type APIRegionalEndpoint struct {
+// An APIEndpoint represents an endpoint that can fetch dynamic data
+// about League of Legend
+type APIEndpoint struct {
 	g      RESTGetter
 	region *Region
 	key    APIKey
 }
 
-func NewAPIRegionalEndpoint(region *Region, key APIKey) *APIRegionalEndpoint {
-	return &APIRegionalEndpoint{
+// NewAPIEndpoint creates a new APIEndpoint from a Region and an
+// APIKey
+func NewAPIEndpoint(region *Region, key APIKey) *APIEndpoint {
+	return &APIEndpoint{
 		g:      NewRateLimitedRESTGetter(10, 10*time.Second),
 		region: region,
 		key:    key,
 	}
 }
 
-func (a *APIRegionalEndpoint) FormatUrl(url string, options map[string]string) string {
+// formats an url for that endpoint
+func (a *APIEndpoint) formatURL(url string, options map[string]string) string {
 	res := fmt.Sprintf("https://%s/api/lol/%s%s?api_key=%s", a.region.url, a.region.code, url, a.key)
 	for k, v := range options {
 		res = fmt.Sprintf("%s&%s=%s", res, k, v)
@@ -27,11 +32,12 @@ func (a *APIRegionalEndpoint) FormatUrl(url string, options map[string]string) s
 	return res
 }
 
-func (a *APIRegionalEndpoint) Get(url string, options map[string]string, v interface{}) error {
-	fullUrl := a.FormatUrl(url, options)
-	err := a.g.Get(fullUrl, v)
+// get data from that endpoint
+func (a *APIEndpoint) get(url string, options map[string]string, v interface{}) error {
+	fullURL := a.formatURL(url, options)
+	err := a.g.Get(fullURL, v)
 	if err != nil {
-		return fmt.Errorf("Cannot access %s: %s", fullUrl, err)
+		return fmt.Errorf("Cannot access %s: %s", fullURL, err)
 	}
 	return nil
 }

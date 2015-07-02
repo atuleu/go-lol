@@ -1,23 +1,31 @@
 package lol
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
 )
 
+// RESTGetter is an interface for object able to Get JSON data from
+// lol REST Api
 type RESTGetter interface {
 	Get(url string, v interface{}) error
 }
 
+// A SimpleRESTGetter is the simplest implementation of a RESTGetter,
+// i.e. it will just GET the requested URL, and if the Status is 200,
+// will decode the JSON data
 type SimpleRESTGetter struct{}
 
+// RESTError represents an error when trying to GET the URL api
+// (i.e. non 200 return code)
 type RESTError struct {
 	Code int
 }
 
+// Error return a textual represenation of the RESTError (to
+// implements error interface)
 func (e RESTError) Error() string {
 	if e.Code == 429 {
 		return "Too Many request to server"
@@ -25,10 +33,14 @@ func (e RESTError) Error() string {
 	return fmt.Sprintf("Non 200 return code: %d", e.Code)
 }
 
+// NewSimpleRESTGetter creates a new SimpleRESTGetter
 func NewSimpleRESTGetter() *SimpleRESTGetter {
 	return &SimpleRESTGetter{}
 }
 
+// Get performs a GET HTTP request on the given URL, and if the Status
+// is not an error, will decode the body of the response as JSON into
+// the given object.
 func (g *SimpleRESTGetter) Get(url string, v interface{}) error {
 	resp, err := http.Get(url)
 	//we
@@ -49,12 +61,18 @@ func (g *SimpleRESTGetter) Get(url string, v interface{}) error {
 
 }
 
+// A RateLimitedRESTGetter performs the same than a SimpleRESTGetter,
+// but limits the amount of request it does overtime, not to reach
+// Riot Games imposed Request limitations
 type RateLimitedRESTGetter struct {
 	getter *SimpleRESTGetter
 	window time.Duration
 	tokens chan bool
 }
 
+// NewRateLimitedRESTGetter creates a RateLimitedRESTGetter, that
+// limits its request to no more than limit request over a
+// time.Duration window
 func NewRateLimitedRESTGetter(limit uint, window time.Duration) *RateLimitedRESTGetter {
 	return &RateLimitedRESTGetter{
 		getter: NewSimpleRESTGetter(),
@@ -63,6 +81,8 @@ func NewRateLimitedRESTGetter(limit uint, window time.Duration) *RateLimitedREST
 	}
 }
 
+// Get acts like SimpleRESTGetter.Get, but will try not to exceed the
+// number of request over time defined by NewRateLimitedRESTGetter
 func (g *RateLimitedRESTGetter) Get(url string, v interface{}) error {
 	//place a token
 	g.tokens <- true
@@ -77,6 +97,8 @@ func (g *RateLimitedRESTGetter) Get(url string, v interface{}) error {
 
 }
 
+// RESTStaticData represent some data statically fetch from Riot
+// API. It has no other purpose than having some data for unit testing
 type RESTStaticData struct {
 	TeamIDs           []string
 	SummonerNames     []string
@@ -88,7 +110,7 @@ type RESTStaticData struct {
 	ResponseByRequest map[string][]byte
 }
 
-type RESTStaticGetter struct {
+/*type RESTStaticGetter struct {
 	data RESTStaticData
 }
 
@@ -185,3 +207,4 @@ func (g *RESTStaticGetter) RegionCode() string {
 func (g *RESTStaticGetter) Key() APIKey {
 	return g.data.Key
 }
+*/

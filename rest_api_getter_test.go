@@ -121,7 +121,7 @@ func (g *RESTStaticMock) Key() APIKey {
 
 var getter *RESTStaticMock
 var regionTest *Region
-var api *APIRegionalEndpoint
+var api *APIEndpoint
 
 func init() {
 	data, err := Asset("data/go-lol_testdata.json")
@@ -139,7 +139,7 @@ func init() {
 		panic(err)
 	}
 
-	api = &APIRegionalEndpoint{
+	api = &APIEndpoint{
 		g:      getter,
 		region: regionTest,
 		key:    getter.Key(),

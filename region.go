@@ -2,107 +2,122 @@ package lol
 
 import "fmt"
 
+// A RegionID is used to uniquely identifies a Region
 type RegionID uint
 
 const (
+	// BR represents Brazil region
 	BR RegionID = iota
+	// EUNE represents European Union North - East region
 	EUNE
+	// EUW represents European Union West region
 	EUW
+	// KR represents Korea region
 	KR
+	// LAN represents Latin America North region
 	LAN
+	// LAS represents Latin America South  region
 	LAS
+	// NA represents North America region
 	NA
+	// OCE represents Oceania region
 	OCE
+	// TR represents Turkish region
 	TR
+	// RU represents Russia region
 	RU
+	// PBE represents the Public Beta Environment region
 	PBE
+	// GLOBAL represents global static data access point
 	GLOBAL
 )
 
+// A Region defines a set of severs where people can play together
 type Region struct {
-	platformId   string
+	platformID   string
 	code         string
 	url          string
-	spectatorUrl string
+	spectatorURL string
 }
 
 var regionByID = map[RegionID]*Region{
 	BR: &Region{
-		platformId:   "BR1",
+		platformID:   "BR1",
 		code:         "br",
 		url:          "br.api.pvp.net",
-		spectatorUrl: "spectator.br.lol.riotgames.com",
+		spectatorURL: "spectator.br.lol.riotgames.com",
 	},
 	EUNE: &Region{
-		platformId:   "EUN1",
+		platformID:   "EUN1",
 		code:         "eune",
 		url:          "eune.api.pvp.net",
-		spectatorUrl: "spectator.eu.lol.riotgames.com:8088",
+		spectatorURL: "spectator.eu.lol.riotgames.com:8088",
 	},
 	EUW: &Region{
-		platformId:   "EUW1",
+		platformID:   "EUW1",
 		code:         "euw",
 		url:          "euw.api.pvp.net",
-		spectatorUrl: "spectator.euw1.lol.riotgames.com",
+		spectatorURL: "spectator.euw1.lol.riotgames.com",
 	},
 	KR: &Region{
-		platformId:   "KR1",
+		platformID:   "KR1",
 		code:         "kr",
 		url:          "kr.api.pvp.net",
-		spectatorUrl: "spectator.kr.lol.riotgames.com",
+		spectatorURL: "spectator.kr.lol.riotgames.com",
 	},
 	LAN: &Region{
-		platformId:   "LA1",
+		platformID:   "LA1",
 		code:         "lan",
 		url:          "lan.api.pvp.net",
-		spectatorUrl: "spectator.la1.lol.riotgames.com",
+		spectatorURL: "spectator.la1.lol.riotgames.com",
 	},
 	LAS: &Region{
-		platformId:   "LA2",
+		platformID:   "LA2",
 		code:         "las",
 		url:          "las.api.pvp.net",
-		spectatorUrl: "spectator.la2.lol.riotgames.com",
+		spectatorURL: "spectator.la2.lol.riotgames.com",
 	},
 	NA: &Region{
-		platformId:   "NA1",
+		platformID:   "NA1",
 		code:         "na",
 		url:          "na.api.pvp.net",
-		spectatorUrl: "spectator.na.lol.riotgames.com",
+		spectatorURL: "spectator.na.lol.riotgames.com",
 	},
 	OCE: &Region{
-		platformId:   "OC1",
+		platformID:   "OC1",
 		code:         "oce",
 		url:          "oce.api.pvp.net",
-		spectatorUrl: "spectator.oc1.lol.riotgames.com",
+		spectatorURL: "spectator.oc1.lol.riotgames.com",
 	},
 	TR: &Region{
-		platformId:   "TR1",
+		platformID:   "TR1",
 		code:         "tr",
 		url:          "tr.api.pvp.net",
-		spectatorUrl: "spectator.tr.lol.riotgames.com",
+		spectatorURL: "spectator.tr.lol.riotgames.com",
 	},
 	RU: &Region{
-		platformId:   "RU1",
+		platformID:   "RU1",
 		code:         "ru",
 		url:          "ru.api.pvp.net",
-		spectatorUrl: "spectator.ru.lol.riotgames.com",
+		spectatorURL: "spectator.ru.lol.riotgames.com",
 	},
 	PBE: &Region{
-		platformId:   "PBE1",
+		platformID:   "PBE1",
 		code:         "pbe",
 		url:          "pbe.api.pvp.net",
-		spectatorUrl: "spectator.pbe1.lol.riotgames.com:8088",
+		spectatorURL: "spectator.pbe1.lol.riotgames.com:8088",
 	},
 	GLOBAL: &Region{
-		platformId:   "",
+		platformID:   "",
 		code:         "global",
 		url:          "global.api.pvp.net",
-		spectatorUrl: "",
+		spectatorURL: "",
 	},
 }
 
 var regionByCode map[string]*Region
 
+// NewRegion returns a region identified by its RegionID
 func NewRegion(id RegionID) (*Region, error) {
 	r, ok := regionByID[id]
 	if ok == false {
@@ -112,6 +127,8 @@ func NewRegion(id RegionID) (*Region, error) {
 	return r, nil
 }
 
+// NewRegionByCode returns a region identified by its code (i.e. "euw"
+// for EUW)
 func NewRegionByCode(code string) (*Region, error) {
 	r, ok := regionByCode[code]
 	if ok == false {
@@ -128,14 +145,19 @@ func init() {
 	}
 }
 
+// Code returns the code used to identifies a Region
 func (r *Region) Code() string {
 	return r.code
 }
 
+// PlatformID returns the ID used by observer mode to identifies the
+// Region
 func (r *Region) PlatformID() string {
-	return r.platformId
+	return r.platformID
 }
 
-func (r *Region) SpectatorUrl() string {
-	return r.spectatorUrl
+// SpectatorURL returns the url that should be used to spectate game
+// for the Region
+func (r *Region) SpectatorURL() string {
+	return r.spectatorURL
 }

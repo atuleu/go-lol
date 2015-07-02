@@ -89,7 +89,7 @@ func (r *replayDataDir) checkRegion() error {
 	if r.region == nil {
 		return fmt.Errorf("Unitialized region")
 	}
-	if len(r.region.PlatformID()) == 0 || len(r.region.SpectatorUrl()) == 0 {
+	if len(r.region.PlatformID()) == 0 || len(r.region.SpectatorURL()) == 0 {
 		return fmt.Errorf("Region %s does not have a spectator mode (static endpoint)", r.region.Code())
 	}
 	return nil

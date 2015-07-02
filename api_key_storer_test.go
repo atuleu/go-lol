@@ -36,11 +36,11 @@ func (h *TempHomer) TearDown() error {
 	return os.RemoveAll(h.tmpDir)
 }
 
-func (s *TempHomer) OverrideEnv(key, value string) {
-	if s.envOverrides == nil {
-		s.envOverrides = make(map[string]string)
+func (h *TempHomer) OverrideEnv(key, value string) {
+	if h.envOverrides == nil {
+		h.envOverrides = make(map[string]string)
 	}
-	s.envOverrides[key] = value
+	h.envOverrides[key] = value
 }
 
 type XdgAPIKeyStorerSuite struct {
@@ -70,8 +70,8 @@ func (s *XdgAPIKeyStorerSuite) TestKeyValidity(c *C) {
 		"8975503a-9e88-4252-b11e-fc649f2dbe0d",
 	}
 
-	for _, kStr := range validData {
-		k := APIKey(kStr)
+	for _, keyStr := range validData {
+		k := APIKey(keyStr)
 		err := k.Check()
 		c.Check(err, IsNil, Commentf("Got unexpected error: %s", err))
 	}

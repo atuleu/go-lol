@@ -38,7 +38,7 @@ func (d *ReplayDownloader) Download(region *lol.Region, id lol.GameID) error {
 	}
 
 	url := fmt.Sprintf("http://%s/observer-mode/rest/consumer/getGameMetaData/%s/%d/1/token",
-		region.SpectatorUrl(),
+		region.SpectatorURL(),
 		region.PlatformID(),
 		id)
 

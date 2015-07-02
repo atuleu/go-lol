@@ -7,24 +7,30 @@ import (
 	"time"
 )
 
+// EpochMillisecond represents a point in time by the number of
+// milliseconds since EPOCH
 type EpochMillisecond uint64
 
+// SummonerID uniquely identifies a Summoner
 type SummonerID uint64
 
-func (s EpochMillisecond) ToTime() time.Time {
+// Time converts EpochMillisecond to time.Time
+func (s EpochMillisecond) Time() time.Time {
 	secs := int64(s) / 1000
 	return time.Unix(secs, int64(s)-secs)
 }
 
+// A Summoner is a representation of a player on LoL servers
 type Summoner struct {
-	Id            SummonerID       `json:"id"`
+	ID            SummonerID       `json:"id"`
 	Name          string           `json:"name"`
-	ProfileIconId int              `json:"profileIconId"`
+	ProfileIconID int              `json:"profileIconId"`
 	Level         uint32           `json:"summonerLevel"`
 	RevisionDate  EpochMillisecond `json:"revisionDate"`
 }
 
-func (a *APIRegionalEndpoint) GetSummonerByName(names []string) ([]Summoner, error) {
+// GetSummonerByName returns Summoner data identified by their names
+func (a *APIEndpoint) GetSummonerByName(names []string) ([]Summoner, error) {
 	if len(names) > 40 {
 		return nil, fmt.Errorf("Cannot checkout more than 40 IDs, %d requested", len(names))
 	}
@@ -34,7 +40,7 @@ func (a *APIRegionalEndpoint) GetSummonerByName(names []string) ([]Summoner, err
 
 	res := make(map[string]Summoner, len(names))
 
-	err := a.Get(fmt.Sprintf("/v1.4/summoner/by-name/%s", strings.Join(names, ",")),
+	err := a.get(fmt.Sprintf("/v1.4/summoner/by-name/%s", strings.Join(names, ",")),
 		nil, &res)
 	if err != nil {
 		return nil, err
@@ -48,7 +54,9 @@ func (a *APIRegionalEndpoint) GetSummonerByName(names []string) ([]Summoner, err
 
 }
 
-func (a *APIRegionalEndpoint) GetSummonerNames(ids []SummonerID) (map[SummonerID]string, error) {
+// GetSummonerNames returns the name of Summoner identified by their
+// IDs
+func (a *APIEndpoint) GetSummonerNames(ids []SummonerID) (map[SummonerID]string, error) {
 	if len(ids) > 40 {
 		return nil, fmt.Errorf("Cannot checkout more than 40 Summoner names, got %d", len(ids))
 	}
@@ -63,7 +71,7 @@ func (a *APIRegionalEndpoint) GetSummonerNames(ids []SummonerID) (map[SummonerID
 		idsStr = append(idsStr, strconv.FormatInt(int64(id), 10))
 	}
 
-	err := a.Get(fmt.Sprintf("/v1.4/summoner/%s/name", strings.Join(idsStr, ",")), nil, &res)
+	err := a.get(fmt.Sprintf("/v1.4/summoner/%s/name", strings.Join(idsStr, ",")), nil, &res)
 	if err != nil {
 		return nil, err
 	}

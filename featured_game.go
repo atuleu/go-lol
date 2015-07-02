@@ -2,12 +2,14 @@ package lol
 
 import "fmt"
 
+// FeaturedGame is a game that Riot Game considers worth spectating
 type FeaturedGame struct {
 	Games          []CurrentGame `json:"gameList"`
 	RefrehInterval int64         `json:"clientRefreshInterval"`
 }
 
-func (a *APIRegionalEndpoint) GetFeaturedGames() (*FeaturedGame, error) {
+// GetFeaturedGames returns the currently played FeaturedGame on the region
+func (a *APIEndpoint) GetFeaturedGames() (*FeaturedGame, error) {
 	res := &FeaturedGame{}
 
 	err := a.g.Get(fmt.Sprintf("https://%s/observer-mode/rest/featured?api_key=%s",

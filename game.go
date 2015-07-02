@@ -2,25 +2,29 @@ package lol
 
 import "fmt"
 
+// GameID uinquely identifies a Game on a Region. It is a uint64, as
+// EUW as already reached 2^31 games ... EUW > NA !
 type GameID uint64 //this is a 64 bit, EUW reached limit of int32 EUW > NA !
 
+// String return a string representation of the GameID
 func (g GameID) String() string {
 	return fmt.Sprintf("%d", g)
 }
 
+// A Game is a game played on the LoL servers
 type Game struct {
-	Id         GameID           `json:"gameId"`
+	ID         GameID           `json:"gameId"`
 	Invalid    bool             `json:"invalid"`
 	Mode       string           `json:"gameMode"`
 	Type       string           `json:"gameType"`
 	SubType    string           `json:"subType"`
-	MapId      int              `json:"mapId"`
+	MapID      int              `json:"mapId"`
 	Team       int              `json:"teamId"`
 	Champion   ChampionID       `json:"championId"`
 	Spell1     int              `json:"spell1"`
 	Spell2     int              `json:"spell2"`
 	Level      int              `json:"level"`
-	IpEarned   int              `json:"ipEarned"`
+	IPEarned   int              `json:"ipEarned"`
 	CreateDate EpochMillisecond `json:"createDate"`
 
 	Fellows []struct {
@@ -112,14 +116,19 @@ type Game struct {
 	} `json:"stats"`
 }
 
+// RecentGames represent the up to 15 last Game played by a Summoner
 type RecentGames struct {
-	ID    SummonerID `json:"summonerId"`
-	Games []Game     `json:"games"`
+	// ID of the Summoner who played the Game
+	ID SummonerID `json:"summonerId"`
+	// Games recently played
+	Games []Game `json:"games"`
 }
 
-func (a *APIRegionalEndpoint) GetSummonerRecentGames(id SummonerID) ([]Game, error) {
+// GetSummonerRecentGames returns the list of game recently played by
+// a Summoner identified by its SummonerID
+func (a *APIEndpoint) GetSummonerRecentGames(id SummonerID) ([]Game, error) {
 	resp := &RecentGames{}
-	err := a.Get(fmt.Sprintf("/v1.3/game/by-summoner/%d/recent", id), nil, resp)
+	err := a.get(fmt.Sprintf("/v1.3/game/by-summoner/%d/recent", id), nil, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -128,9 +137,10 @@ func (a *APIRegionalEndpoint) GetSummonerRecentGames(id SummonerID) ([]Game, err
 	return resp.Games, nil
 }
 
+// String returns a textual (brief) representation of the Game
 func (g Game) String() string {
 	return fmt.Sprintf("GameID:%d Champion Played: %d Won:%v KDA:%d/%d/%d",
-		g.Id,
+		g.ID,
 		g.Champion,
 		g.Stats.Win,
 		g.Stats.Kills,

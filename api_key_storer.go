@@ -12,8 +12,10 @@ import (
 	"launchpad.net/go-xdg"
 )
 
+// An APIKey is used to authenticate access to Riot Game API
 type APIKey string
 
+// Check returns an error if the APIKey is not valid, nil otherwise
 func (k APIKey) Check() error {
 	if len(k) == 0 {
 		return fmt.Errorf("Key is empty")
@@ -26,17 +28,22 @@ func (k APIKey) Check() error {
 	return nil
 }
 
+// An APIKeyStorer is used to safely Store and Get an APIKey for the
+// user
 type APIKeyStorer interface {
 	Get() (APIKey, bool)
 	Store(k APIKey) error
 }
 
+// XdgAPIKeyStorer Store and Get an APIkey from a file located in the
+// $XDG_CONFIG_HOME directory
 type XdgAPIKeyStorer struct {
 	path string
 	lock lockfile.Lockfile
 	key  APIKey
 }
 
+// NewXdgAPIKeyStorer creates a new XdgAPIKeyStorer
 func NewXdgAPIKeyStorer() (*XdgAPIKeyStorer, error) {
 	res := &XdgAPIKeyStorer{}
 	var err error
@@ -111,10 +118,12 @@ func (s *XdgAPIKeyStorer) save() error {
 	return err
 }
 
+// Get retrieve the APIKey from user's XDG_CONFIG_HOME
 func (s *XdgAPIKeyStorer) Get() (APIKey, bool) {
 	return s.key, len(s.key) > 0
 }
 
+// Store saves the new APIKey k to user's XDG_CONFIG_HOME
 func (s *XdgAPIKeyStorer) Store(k APIKey) error {
 	if err := k.Check(); err != nil {
 		return err

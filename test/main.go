@@ -30,7 +30,7 @@ func Execute() error {
 		return err
 	}
 
-	api := lol.NewAPIRegionalEndpoint(region, key)
+	api := lol.NewAPIEndpoint(region, key)
 
 	fgames, err := api.GetFeaturedGames()
 	if err != nil {
@@ -42,7 +42,7 @@ func Execute() error {
 	}
 
 	dl, err := xlol.NewReplayDownloader(path.Join(os.TempDir(), "go-lol"))
-	return dl.Download(region, fgames.Games[0].Id)
+	return dl.Download(region, fgames.Games[0].ID)
 
 }
 

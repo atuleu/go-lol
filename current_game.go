@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// CurrentGame represent a Game that a Summoner is currently playing
 type CurrentGame struct {
 	BannedChampion []struct {
 		Champion ChampionID `json:"championId"`
@@ -13,11 +14,11 @@ type CurrentGame struct {
 		Team     int        `json:"teamID"`
 	} `json:"bannedChampions"`
 
-	Id         GameID `json:"gameId"`
+	ID         GameID `json:"gameId"`
 	GameLength int64  `json:"GameLength"`
 
 	Participants []struct {
-		Id   SummonerID `json:"summonerId"`
+		ID   SummonerID `json:"summonerId"`
 		Name string     `json:"summonerName"`
 	} `json:"participants"`
 
@@ -26,11 +27,14 @@ type CurrentGame struct {
 	} `json:"observers"`
 }
 
-func (a *APIRegionalEndpoint) GetCurrentGame(id SummonerID) (*CurrentGame, error) {
+// GetCurrentGame return the CurrentGame of a Summoner identified by
+// its SummonerID. It returns nil,nil if the user is not currently
+// playing a game.
+func (a *APIEndpoint) GetCurrentGame(id SummonerID) (*CurrentGame, error) {
 	res := &CurrentGame{}
 	err := a.g.Get(fmt.Sprintf("https://%s/observer-mode/rest/consumer/getSpectatorGameInfo/%s/%d?api_key=%s",
 		a.region.url,
-		a.region.platformId,
+		a.region.platformID,
 		id,
 		a.key), res)
 	if rerr, ok := err.(RESTError); ok == true {
@@ -51,6 +55,6 @@ func (g CurrentGame) String() string {
 	for _, v := range g.Participants {
 		participantName = append(participantName, v.Name)
 	}
-	res := fmt.Sprintf("GameID:%d GameLength:%s Participants:[%s]", g.Id, time.Duration(g.GameLength)*time.Second, strings.Join(participantName, " , "))
+	res := fmt.Sprintf("GameID:%d GameLength:%s Participants:[%s]", g.ID, time.Duration(g.GameLength)*time.Second, strings.Join(participantName, " , "))
 	return res
 }
