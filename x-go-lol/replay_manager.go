@@ -9,7 +9,9 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	lol ".."
@@ -107,6 +109,7 @@ type managerLocalData struct {
 	chunks    map[ChunkID]associatedChunkInfo
 	keyframes map[KeyFrameID]associatedKeyFrameInfo
 
+	Version           string
 	EncryptionKey     string
 	FirstChunk        ChunkID
 	MaxChunk          ChunkID
@@ -269,6 +272,41 @@ func (d *managerLocalData) Consolidate() {
 			lastKf = KeyFrameID(kfi)
 		}
 	}
+}
+
+func (d *managerLocalData) check(ddir *replayDataDir) error {
+	// checks that we do not miss a chunk, and all have an associated
+	// keyFrame, and the keyframe is available
+	noKeyFrameIsFailure := false
+	for i := d.FirstChunk; i <= d.MaxChunk; i++ {
+		c, ok := d.chunks[ChunkID(i)]
+		if ok == false {
+			return fmt.Errorf("Missing chunk %d", i)
+		}
+
+		_, err := os.Stat(ddir.chunkPath(c.ID))
+		if err != nil {
+			return err
+		}
+
+		if c.KeyFrame > 0 {
+			noKeyFrameIsFailure = true
+		} else {
+			if noKeyFrameIsFailure == true {
+				return fmt.Errorf("Missing associated frame for chunk %d", c.ID)
+			}
+		}
+
+		_, ok = d.keyframes[c.KeyFrame]
+		if ok == false {
+			return fmt.Errorf("Missing Keyframe %d", c.KeyFrame)
+		}
+		_, err = os.Stat(ddir.keyFramePath(c.KeyFrame))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type managerLocalDataForJSON struct {
@@ -443,7 +481,10 @@ func (m *LocalManager) Download(region *lol.Region, id lol.GameID, encryptionKey
 		time.Sleep(nextAvailableChunkDate.Sub(cTime))
 
 	}
-
+	err = maData.check(d)
+	if err != nil {
+		return err
+	}
 	f, err := os.Create(d.endOfGameDataPath())
 	if err != nil {
 		return err
@@ -459,6 +500,154 @@ func (m *LocalManager) AvailableReplay() (map[string][]GameMetadata, error) {
 	return m.datadir.allFinishedReplays()
 }
 
+type gameReplayHandler struct {
+	d              *replayDataDir
+	localData      *managerLocalData
+	metaData       *GameMetadata
+	cinfo          LastChunkInfo
+	currentChunkId ChunkID
+	rx             *regexp.Regexp
+}
+
+const (
+	functionIdx int = 1
+	paramIdx    int = 6
+	nullIdx     int = 4
+)
+
+func newGameReplayHandler(d *replayDataDir) (*gameReplayHandler, error) {
+	res := &gameReplayHandler{
+		d:         d,
+		localData: &managerLocalData{},
+		metaData:  &GameMetadata{},
+	}
+
+	err := res.loadJSON(d.metaDataPath(), res.metaData)
+	if err != nil {
+		return nil, err
+	}
+
+	err = res.loadJSON(d.managerDataPath(), res.localData)
+	if err != nil {
+		return nil, err
+	}
+
+	err = res.localData.check(d)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := res.localData.StartGameChunkID; i <= res.localData.MaxChunk; i++ {
+		res.currentChunkId = i
+		if res.localData.chunks[i].KeyFrame > 0 {
+			break
+		}
+	}
+
+	res.metaData.ClientBackFetchingEnabled = true
+
+	res.rx, err = regexp.Compile(fmt.Sprintf(`\A([a-zA-Z]+)(/%s/%d/((null)|(([0-9]+)/token)))?\z`,
+		res.metaData.GameKey.PlatformID,
+		res.metaData.GameKey.ID))
+	return res, nil
+}
+
+func (h *gameReplayHandler) loadJSON(path string, v interface{}) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	dec := json.NewDecoder(f)
+	return dec.Decode(v)
+}
+
+func (h *gameReplayHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if req.Method != "GET" {
+		w.WriteHeader(404)
+		return
+	}
+
+	url := req.URL.Path
+	log.Printf("Handling %s", url)
+	if strings.HasPrefix(url, Prefix) == false {
+		w.WriteHeader(404)
+		return
+	}
+
+	url = strings.TrimPrefix(url, Prefix)
+
+	m := h.rx.FindStringSubmatch(url)
+	if len(m) == 0 {
+		w.WriteHeader(404)
+		return
+	}
+	fn := m[functionIdx]
+	null := m[nullIdx]
+	param := m[paramIdx]
+
+	switch SpectateFunction(fn) {
+	case Version:
+		h.handleVersion(null, param, w)
+	case GetGameMetaData:
+		h.handleGetMetaData(null, param, w)
+	case GetLastChunkInfo:
+		h.handleGetLastChunkInfo(null, param, w)
+	case GetKeyFrame:
+		h.handleGetKeyFrame(null, param, w)
+	case GetGameDataChunk:
+		h.handleGetChunk(null, param, w)
+	case EndOfGameStats:
+		h.handleGetEndOfGame(null, param, w)
+	default:
+		w.WriteHeader(404)
+	}
+}
+
+func (h *gameReplayHandler) handleVersion(null, param string, w http.ResponseWriter) {
+	if len(null) != 0 || len(param) != 0 {
+		w.WriteHeader(404)
+	}
+	_, err := io.Copy(w, bytes.NewBuffer([]byte(h.localData.Version)))
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (h *gameReplayHandler) handleGetMetaData(null, param string, w http.ResponseWriter) {
+
+}
+
+func (h *gameReplayHandler) handleGetLastChunkInfo(null, param string, w http.ResponseWriter) {
+
+}
+
+func (h *gameReplayHandler) handleGetChunk(null, param string, w http.ResponseWriter) {
+
+}
+
+func (h *gameReplayHandler) handleGetKeyFrame(null, param string, w http.ResponseWriter) {
+
+}
+
+func (h *gameReplayHandler) handleGetEndOfGame(null, param string, w http.ResponseWriter) {
+
+}
+
 func (m *LocalManager) GetHandler(region *lol.Region, id lol.GameID) (http.Handler, string, error) {
+	d, err := newReplayDataDir(m.datadir, region, id)
+	if err != nil {
+		return nil, "", err
+	}
+
+	_, err = os.Stat(d.endOfGameDataPath())
+	if err != nil {
+		if os.IsNotExist(err) == true {
+			return nil, "", fmt.Errorf("No full data available for game %s:%d", region.Code(), id)
+		}
+		return nil, "", err
+	}
+
 	return nil, "", fmt.Errorf("Not yet implemented")
 }

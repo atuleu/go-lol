@@ -37,6 +37,9 @@ const (
 	GetKeyFrame SpectateFunction = "getKeyFrame"
 	//EndOfGameStats returns a json data about game stats
 	EndOfGameStats SpectateFunction = "endOfGameStats"
+	//Version returns current version
+	Version SpectateFunction = "version"
+	Prefix  string           = "/observer-mode/rest/consumer/"
 )
 
 // NewSpectateAPI creates a new API endpoint dedicated to get data for
@@ -55,18 +58,24 @@ func NewSpectateAPI(region *lol.Region, id lol.GameID) (*SpectateAPI, error) {
 // Format formats an URL appropriately for the API
 func (a *SpectateAPI) Format(function SpectateFunction, param int) string {
 	if param != NullParam {
-		return fmt.Sprintf("http://%s/observer-mode/rest/consumer/%s/%s/%d/%d/token",
+		return fmt.Sprintf("http://%s%s%s/%s/%d/%d/token",
 			a.region.SpectatorURL(),
+			Prefix,
 			function,
 			a.region.PlatformID(),
 			a.id,
 			param)
 	}
-	return fmt.Sprintf("http://%s/observer-mode/rest/consumer/%s/%s/%d/null",
+	return fmt.Sprintf("http://%s%s%s/%s/%d/null",
 		a.region.SpectatorURL(),
+		Prefix,
 		function,
 		a.region.PlatformID(),
 		a.id)
+}
+
+func (a *SpectateAPI) VersionURL() string {
+	return fmt.Sprintf("http://%s%s%s", a.region.SpectatorURL(), Prefix, Version)
 }
 
 // Get parses JSON data into the v param. Only GetGameMetaData,
