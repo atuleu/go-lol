@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 
 	lol ".."
 )
@@ -134,4 +135,123 @@ func (a *SpectateAPI) ReadAll(function SpectateFunction, param int, w io.Writer)
 	}
 	_, err = io.Copy(w, resp.Body)
 	return err
+}
+
+func (a *SpectateAPI) Version() (string, error) {
+	url := fmt.Sprintf("http://%s%s%s", a.region.PlatformID(), Prefix, Version)
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return "", lol.RESTError{Code: resp.StatusCode}
+	}
+	d, err := ioutil.ReadAll(resp.Body)
+	return string(d), err
+}
+
+func (a *SpectateAPI) readBinary(fn SpectateFunction, id int, onSuccess func(), onUnreachable func()) ([]byte, error) {
+	var res bytes.Buffer
+	if err := a.ReadAll(fn, id, &res); err != nil {
+		if rerr, ok := err.(lol.RESTError); ok == true {
+			if rerr.Code == 404 {
+				onUnreachable()
+				return nil, nil
+			}
+		}
+		return nil, err
+	}
+	onSuccess()
+	return res.Bytes(), nil
+}
+
+func (a *SpectateAPI) SpectateGame(encryptionKey string) (*Replay, error) {
+
+	replay := NewEmptyReplay()
+	replay.EncryptionKey = encryptionKey
+	//Get the version
+	var err error
+	replay.Version, err = a.Version()
+	if err != nil {
+		return nil, err
+	}
+
+	// next should not use a loop, but some kind of Go channel stuff,
+	// but we will be waiting most of the time with a decent
+	// connection.
+	nextChunkToDownload := ChunkID(0)
+	nextKeyframeToDownload := KeyFrameID(0)
+
+	chunks := make(map[ChunkID][]byte)
+	keyFrames := make(map[KeyFrameID][]byte)
+
+	for {
+		// 1. get all current metadata, and merge it in our replay structure
+		var metadata GameMetadata
+		err = a.Get(GetGameMetaData, 1, &metadata)
+		if err != nil {
+			return nil, err
+		}
+
+		var cInfo LastChunkInfo
+		err := a.Get(GetLastChunkInfo, 1, &cInfo)
+		if err != nil {
+			return nil, err
+		}
+
+		nextAvailableChunkDate := time.Now().Add(cInfo.NextAvailableChunk.Duration() + cInfo.Duration.Duration()/10)
+
+		replay.MergeFromMetaData(metadata)
+		replay.MergeFromLastChunkInfo(cInfo)
+		replay.Consolidate()
+
+		for ; nextChunkToDownload <= cInfo.ID; nextChunkToDownload++ {
+			chunks[nextChunkToDownload], err = a.readBinary(GetGameDataChunk,
+				int(nextChunkToDownload),
+				func() {
+					log.Printf("Downloaded Chunk %d", nextChunkToDownload)
+				},
+				func() {
+					log.Printf("Skipped Chunk %d", nextChunkToDownload)
+				})
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		for ; nextKeyframeToDownload <= cInfo.AssociatedKeyFrameID; nextKeyframeToDownload++ {
+			keyFrames[nextKeyframeToDownload], err = a.readBinary(GetKeyFrame,
+				int(nextKeyframeToDownload),
+				func() {
+					log.Printf("Downloaded KeyFrame %d", nextChunkToDownload)
+				},
+				func() {
+					log.Printf("Skipped KeyFrame %d", nextChunkToDownload)
+				})
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if cInfo.EndGameChunkID > 0 && nextChunkToDownload > cInfo.EndGameChunkID {
+			log.Printf("End of game detected and reached at %d", cInfo.EndGameChunkID)
+			break
+		}
+
+		cTime := time.Now()
+		if cTime.After(nextAvailableChunkDate) == true {
+			continue
+		}
+		log.Printf("Waiting until %s", nextAvailableChunkDate)
+		time.Sleep(nextAvailableChunkDate.Sub(cTime))
+	}
+
+	var eog bytes.Buffer
+	err = a.ReadAll(EndOfGameStats, NullParam, &eog)
+	if err != nil {
+		return nil, err
+	}
+	replay.EndOfGameStats = eog.Bytes()
+	return replay, nil
 }

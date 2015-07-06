@@ -3,15 +3,11 @@ package xlol
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"path"
-	"regexp"
-	"strings"
-	"time"
 
 	lol ".."
 )
@@ -97,15 +93,15 @@ func (m *LocalManager) downloadBinary(api *SpectateAPI, fn SpectateFunction, id 
 // Download fetches from the lol spectator server data of a game
 // identified by its region and ID, and save it on the local hardrive
 func (m *LocalManager) Download(region *lol.Region, id lol.GameID, encryptionKey string) error {
-	d, err := newReplayDataDir(m.datadir, region, id)
-	if err != nil {
-		return err
-	}
+	// d, err := newReplayDataDir(m.datadir, region, id)
+	// if err != nil {
+	// 	return err
+	// }
 
-	api, err := NewSpectateAPI(region, id)
-	if err != nil {
-		return err
-	}
+	// api, err := NewSpectateAPI(region, id)
+	// if err != nil {
+	// 	return err
+	// }
 
 	//now we get the data, we should in a loop :
 	//1. getLastChunkInfo
@@ -117,88 +113,89 @@ func (m *LocalManager) Download(region *lol.Region, id lol.GameID, encryptionKey
 
 	//to serve, we should :
 	//serve getMetaData, making it believe that
-	nextChunkToDownload := 0
-	nextKeyframeToDownload := 0
+	/*	nextChunkToDownload := 0
+		nextKeyframeToDownload := 0
 
-	replayData := NewReplayMetadata()
-	replayData.EncryptionKey = encryptionKey
+		replay := NewEmptyReplay()
+		replay.EncryptionKey = encryptionKey
 
-	for {
-		var metadata GameMetadata
-		err = api.Get(GetGameMetaData, 1, &metadata)
-		if err != nil {
-			return err
-		}
-
-		var cInfo LastChunkInfo
-		err := api.Get(GetLastChunkInfo, 1, &cInfo)
-		if err != nil {
-			return err
-		}
-		nextAvailableChunkDate := time.Now().Add(cInfo.NextAvailableChunk.Duration() + cInfo.Duration.Duration()/10)
-
-		replayData.MergeFromMetaData(metadata)
-		replayData.MergeFromLastChunkInfo(cInfo)
-		replayData.Consolidate()
-
-		if err != nil {
-			return err
-		}
-
-		for ; nextChunkToDownload <= int(cInfo.ID); nextChunkToDownload++ {
-			chunkPath := d.chunkPath(ChunkID(nextChunkToDownload))
-			if err := m.downloadBinary(api, GetGameDataChunk, nextChunkToDownload, chunkPath); err != nil {
+		for {
+			var metadata GameMetadata
+			err = api.Get(GetGameMetaData, 1, &metadata)
+			if err != nil {
 				return err
 			}
-		}
 
-		for ; nextKeyframeToDownload <= int(cInfo.AssociatedKeyFrameID); nextKeyframeToDownload++ {
-			keyFramePath := d.keyFramePath(KeyFrameID(nextKeyframeToDownload))
-			if err := m.downloadBinary(api, GetKeyFrame, nextKeyframeToDownload, keyFramePath); err != nil {
+			var cInfo LastChunkInfo
+			err := api.Get(GetLastChunkInfo, 1, &cInfo)
+			if err != nil {
 				return err
 			}
-		}
 
-		//saves the metadata
-		//erases the pending info, we recompute it at this end
-		metadata.PendingAvailableChunkInfo = []ChunkInfo{}
-		metadata.PendingAvailableKeyFrameInfo = []KeyFrameInfo{}
-		err = m.saveJSON(d.metaDataPath(), metadata)
+			nextAvailableChunkDate := time.Now().Add(cInfo.NextAvailableChunk.Duration() + cInfo.Duration.Duration()/10)
+
+			replay.MergeFromMetaData(metadata)
+			replay.MergeFromLastChunkInfo(cInfo)
+			replay.Consolidate()
+
+			for ; nextChunkToDownload <= int(cInfo.ID); nextChunkToDownload++ {
+
+				chunkPath := d.chunkPath(ChunkID(nextChunkToDownload))
+				if err := m.downloadBinary(api, GetGameDataChunk, nextChunkToDownload, chunkPath); err != nil {
+					return err
+				}
+			}
+
+			for ; nextKeyframeToDownload <= int(cInfo.AssociatedKeyFrameID); nextKeyframeToDownload++ {
+				keyFramePath := d.keyFramePath(KeyFrameID(nextKeyframeToDownload))
+				if err := m.downloadBinary(api, GetKeyFrame, nextKeyframeToDownload, keyFramePath); err != nil {
+					return err
+				}
+			}
+
+			//saves the metadata
+			//erases the pending info, we recompute it at this end
+			metadata.PendingAvailableChunkInfo = []ChunkInfo{}
+			metadata.PendingAvailableKeyFrameInfo = []KeyFrameInfo{}
+			err = m.saveJSON(d.metaDataPath(), metadata)
+			if err != nil {
+				return err
+			}
+
+			err = m.saveJSON(d.managerDataPath(), replayData)
+			if err != nil {
+				return err
+			}
+
+			if cInfo.EndGameChunkID > 0 && nextChunkToDownload > int(cInfo.EndGameChunkID) {
+				log.Printf("End of game detected and reached at %d", cInfo.EndGameChunkID)
+				break
+			}
+
+			cTime := time.Now()
+			if cTime.After(nextAvailableChunkDate) == true {
+				continue
+			}
+			log.Printf("Waiting until %s", nextAvailableChunkDate)
+			time.Sleep(nextAvailableChunkDate.Sub(cTime))
+
+		}
+		err = replayData.check(d)
 		if err != nil {
 			return err
 		}
-
-		err = m.saveJSON(d.managerDataPath(), replayData)
+		f, err := os.Create(d.endOfGameDataPath())
 		if err != nil {
 			return err
 		}
+		defer f.Close()
 
-		if cInfo.EndGameChunkID > 0 && nextChunkToDownload > int(cInfo.EndGameChunkID) {
-			log.Printf("End of game detected and reached at %d", cInfo.EndGameChunkID)
-			break
-		}
-
-		cTime := time.Now()
-		if cTime.After(nextAvailableChunkDate) == true {
-			continue
-		}
-		log.Printf("Waiting until %s", nextAvailableChunkDate)
-		time.Sleep(nextAvailableChunkDate.Sub(cTime))
-
-	}
-	err = replayData.check(d)
-	if err != nil {
-		return err
-	}
-	f, err := os.Create(d.endOfGameDataPath())
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	return api.ReadAll(EndOfGameStats, NullParam, f)
+		return api.ReadAll(EndOfGameStats, NullParam, f)
+	*/
+	return nil
 }
 
+/*
 // AvailableReplay parses all available replay on hardrive that are
 // finished, and returns their GameMetadata, organiszed by regions
 func (m *LocalManager) AvailableReplay() (map[string][]GameMetadata, error) {
@@ -207,7 +204,7 @@ func (m *LocalManager) AvailableReplay() (map[string][]GameMetadata, error) {
 
 type gameReplayHandler struct {
 	d              *replayDataDir
-	localData      *ReplayMetadata
+	localData      *Replay
 	metaData       *GameMetadata
 	cinfo          LastChunkInfo
 	currentChunkId ChunkID
@@ -355,3 +352,4 @@ func (m *LocalManager) GetHandler(region *lol.Region, id lol.GameID) (http.Handl
 
 	return nil, "", fmt.Errorf("Not yet implemented")
 }
+*/
