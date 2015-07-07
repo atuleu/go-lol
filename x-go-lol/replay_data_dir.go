@@ -16,12 +16,6 @@ type replaysDataDir struct {
 	basedir string
 }
 
-// A ChunkID identfies a chunk in a game stream
-type ChunkID int
-
-// A KeyFrameID identfies a keyframe in a game stream
-type KeyFrameID int
-
 func newReplaysDataDir(basedir string) (*replaysDataDir, error) {
 	//check basedir exists, and is user writable
 	res := &replaysDataDir{

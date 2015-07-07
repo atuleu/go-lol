@@ -3,8 +3,10 @@ package xlol
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
+	"regexp"
 )
 
 // ExpandedReplayFormatter is a ReplayDataLoader that expand all its
@@ -12,6 +14,12 @@ import (
 type ExpandedReplayFormatter struct {
 	basedir string
 }
+
+const (
+	expandedFormatVersion string = "1~dev1"
+)
+
+var binRx = regexp.MustCompile(`\A([a-z]+)\.([0-9]{4})\.bin\z`)
 
 // NewExpandedReplayFormatter returns a ReplayDataLoader that will
 // save and load data from directory basedir
@@ -41,19 +49,115 @@ func NewExpandedReplayFormatter(basedir string) (*ExpandedReplayFormatter, error
 			return nil, fmt.Errorf("%s is not user writable", basedir)
 		}
 	}
+	//check for version of the format
+	err = res.check()
+	if err != nil {
+		return nil, err
+	}
 	return res, nil
 }
 
+const (
+	version    = "version"
+	eogStat    = "endOfGameStats.bin"
+	replayData = "replayData.json"
+	chunk      = "chunk"
+	keyframe   = "keyframe"
+)
+
+type invalidFileError struct {
+	dir      string
+	fileName string
+}
+
+func (e invalidFileError) Error() string {
+	return fmt.Sprintf("expanded go-lol format: Invalid file %s in %s", e.fileName, e.dir)
+}
+
+func (l *ExpandedReplayFormatter) checkCompatible(version string) error {
+	if version != expandedFormatVersion {
+		return fmt.Errorf("Mismatched Replay data format version %s, expected %s",
+			version, expandedFormatVersion)
+	}
+	return nil
+}
+
+func (l *ExpandedReplayFormatter) check() error {
+	//check if the directory is empty
+	finfos, err := ioutil.ReadDir(l.basedir)
+	if err != nil {
+		return err
+	}
+
+	if len(finfos) == 0 {
+		// This is a new replay, we just create version information
+		// and report no error
+		f, err := os.Create(l.versionPath())
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		fmt.Fprintf(f, "%s\n", expandedFormatVersion)
+		return nil
+	}
+
+	// check for version match
+	f, err := os.Open(l.versionPath())
+	if err != nil {
+		return fmt.Errorf("Could not check replay data format version: %s", err)
+	}
+	defer f.Close()
+	var localVersion string
+	_, err = fmt.Fscanf(f, "%s\n", &localVersion)
+	if err != nil {
+		return fmt.Errorf("Could not extract version from %s: %s", l.versionPath(), err)
+	}
+
+	err = l.checkCompatible(localVersion)
+	if err != nil {
+		return err
+	}
+
+	for _, inf := range finfos {
+		m := binRx.FindStringSubmatch(inf.Name())
+		if len(m) != 0 {
+			if m[1] != chunk && m[1] != keyframe {
+				return invalidFileError{fileName: inf.Name(), dir: l.basedir}
+			}
+		}
+
+		switch inf.Name() {
+		case version:
+			fallthrough
+		case eogStat:
+			fallthrough
+		case replayData:
+		default:
+			return invalidFileError{fileName: inf.Name(), dir: l.basedir}
+		}
+	}
+
+	return nil
+}
+
+func (l *ExpandedReplayFormatter) versionPath() string {
+	return path.Join(l.basedir, version)
+}
+
 func (l *ExpandedReplayFormatter) chunkPath(id ChunkID) string {
-	return path.Join(l.basedir, fmt.Sprintf("chunk.%04d.bin", id))
+	return path.Join(l.basedir, fmt.Sprintf("%s.%04d.bin", chunk, id))
 }
 
 func (l *ExpandedReplayFormatter) keyFramePath(id KeyFrameID) string {
-	return path.Join(l.basedir, fmt.Sprintf("keyframe.%04d.bin", id))
+	return path.Join(l.basedir, fmt.Sprintf("%s.%04d.bin", keyframe, id))
 }
 
 func (l *ExpandedReplayFormatter) endOfGamePath() string {
-	return path.Join(l.basedir, "endOfGameStats.bin")
+	return path.Join(l.basedir, eogStat)
+}
+
+func (l *ExpandedReplayFormatter) dataPath() string {
+	return path.Join(l.basedir, replayData)
 }
 
 func (l *ExpandedReplayFormatter) fileExists(path string) bool {
@@ -117,4 +221,14 @@ func (l *ExpandedReplayFormatter) CreateKeyFrame(id KeyFrameID) (io.WriteCloser,
 // data for the end of game statistics
 func (l *ExpandedReplayFormatter) CreateEndOfGameStats() (io.WriteCloser, error) {
 	return os.Create(l.endOfGamePath())
+}
+
+// Create returns a truncatde io.WriteCloser to write replay data
+func (l *ExpandedReplayFormatter) Create() (io.WriteCloser, error) {
+	return os.Create(l.dataPath())
+}
+
+// Open returns a io.ReadCloser for reading replay data
+func (l *ExpandedReplayFormatter) Open() (io.ReadCloser, error) {
+	return os.Open(l.dataPath())
 }
