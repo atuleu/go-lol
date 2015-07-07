@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+	"path"
 	"time"
 
 	lol ".."
@@ -17,6 +19,7 @@ import (
 type SpectateAPI struct {
 	region *lol.Region
 	id     lol.GameID
+	debug  bool
 }
 
 const (
@@ -54,6 +57,7 @@ func NewSpectateAPI(region *lol.Region, id lol.GameID) (*SpectateAPI, error) {
 	return &SpectateAPI{
 		region: region,
 		id:     id,
+		debug:  false,
 	}, nil
 }
 
@@ -95,6 +99,18 @@ func (a *SpectateAPI) Get(function SpectateFunction, param int, v interface{}) e
 		return lol.RESTError{Code: resp.StatusCode}
 	}
 
+	if a.debug == true {
+		debugPath := path.Join(os.TempDir(),
+			fmt.Sprintf("go-lol-debug.%s.%d.%d.json", function, param, time.Now().Unix()))
+		f, err := os.Create(debugPath)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		log.Printf("Debugging data to %s", debugPath)
+		dec := json.NewDecoder(io.TeeReader(resp.Body, f))
+		return dec.Decode(v)
+	}
 	dec := json.NewDecoder(resp.Body)
 	return dec.Decode(v)
 }
@@ -142,7 +158,7 @@ func (a *SpectateAPI) ReadAll(function SpectateFunction, param int, w io.Writer)
 
 // Version is getting from the Server the version currently used.
 func (a *SpectateAPI) Version() (string, error) {
-	url := fmt.Sprintf("http://%s%s%s", a.region.PlatformID(), Prefix, Version)
+	url := fmt.Sprintf("http://%s%s%s", a.region.SpectatorURL(), Prefix, Version)
 	resp, err := http.Get(url)
 	if err != nil {
 		return "", err
