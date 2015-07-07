@@ -2,6 +2,12 @@ package xlol
 
 import lol ".."
 
+// A ChunkID identifies a Chunk in a game stream
+type ChunkID int
+
+// A KeyFrameID identifies a KeyFrame in a game stream
+type KeyFrameID int
+
 // ChunkInfo are information about chunk
 type ChunkInfo struct {
 	ID           ChunkID    `json:"id"`
