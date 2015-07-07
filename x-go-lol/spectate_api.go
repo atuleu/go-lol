@@ -247,10 +247,10 @@ func (a *SpectateAPI) SpectateGame(encryptionKey string) (*Replay, error) {
 			keyFrames[nextKeyframeToDownload], err = a.readBinary(GetKeyFrame,
 				int(nextKeyframeToDownload),
 				func() {
-					log.Printf("Downloaded KeyFrame %d", nextChunkToDownload)
+					log.Printf("Downloaded KeyFrame %d", nextKeyframeToDownload)
 				},
 				func() {
-					log.Printf("Skipped KeyFrame %d", nextChunkToDownload)
+					log.Printf("Skipped KeyFrame %d", nextKeyframeToDownload)
 				})
 			if err != nil {
 				return nil, err
