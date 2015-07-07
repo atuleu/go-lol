@@ -169,7 +169,7 @@ func (m *XdgReplayManager) replaysOfRegion(platformID string) []*Replay {
 		res = append(res, r)
 	}
 
-	sort.Sort(replayList(res))
+	sort.Sort(sort.Reverse(replayList(res)))
 
 	return res
 }

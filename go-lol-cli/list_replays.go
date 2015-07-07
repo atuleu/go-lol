@@ -16,20 +16,17 @@ func (x *ListReplaysCommand) Execute(args []string) error {
 		return err
 	}
 
-	byCode, err := i.manager.AvailableReplay()
-	if err != nil {
-		return err
-	}
+	byCode := i.manager.Replays()
 
-	gdata := byCode[x.RegionCode]
+	replays := byCode[x.RegionCode]
 
-	if len(gdata) == 0 {
+	if len(replays) == 0 {
 		return fmt.Errorf("No replay for region %s", x.RegionCode)
 	}
 
-	fmt.Printf("There are %d replay available for %s:\n", len(gdata), x.RegionCode)
-	for i, gm := range gdata {
-		fmt.Printf("  * %d : Game %d started at %s\n", i+1, gm.GameKey.ID, gm.CreateTime)
+	fmt.Printf("There are %d replay available for %s:\n", len(replays), x.RegionCode)
+	for i, r := range replays {
+		fmt.Printf("  * %d : Game %d started at %s\n", i+1, r.MetaData.GameKey.ID, r.MetaData.CreateTime)
 	}
 
 	return nil

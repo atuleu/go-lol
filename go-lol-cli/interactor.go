@@ -2,18 +2,16 @@ package main
 
 import (
 	"fmt"
-	"path"
 
 	lol ".."
 	xlol "../x-go-lol"
-	"launchpad.net/go-xdg"
 )
 
 type Interactor struct {
 	region  *lol.Region
 	storer  lol.APIKeyStorer
 	key     lol.APIKey
-	manager *xlol.LocalManager
+	manager *xlol.XdgReplayManager
 	api     *lol.APIEndpoint
 }
 
@@ -43,14 +41,7 @@ func NewInteractor(options *Options) (*Interactor, error) {
 
 	res.api = lol.NewAPIEndpoint(res.region, res.key)
 
-	cachedir, err := xdg.Cache.Ensure("go-lol/versions")
-	if err != nil {
-		return nil, fmt.Errorf("Could not initialize cachedir %s: %s", cachedir, err)
-	}
-
-	cachedir = path.Dir(cachedir)
-
-	res.manager, err = xlol.NewLocalManager(cachedir)
+	res.manager, err = xlol.NewXdgReplayManager()
 
 	if err != nil {
 		return nil, err

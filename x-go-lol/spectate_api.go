@@ -261,6 +261,24 @@ func (a *SpectateAPI) SpectateGame(encryptionKey string) (*Replay, error) {
 	}
 	replay.endOfGameStats = eog.Bytes()
 
+	// we put all the data where it is needed
+	for idx, c := range replay.Chunks {
+		data, ok := chunks[c.ID]
+		if ok == false {
+			continue
+		}
+		replay.Chunks[idx].data = data
+	}
+
+	for idx, kf := range replay.KeyFrames {
+		data, ok := keyFrames[kf.ID]
+		if ok == false {
+			continue
+		}
+		replay.KeyFrames[idx].data = data
+	}
+
+	//we check data integrity
 	err = replay.check(nil)
 	if err != nil {
 		return nil, fmt.Errorf("New downloaded replay is inconsistent: %s", err)

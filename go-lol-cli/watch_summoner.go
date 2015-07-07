@@ -6,6 +6,7 @@ import (
 	"time"
 
 	lol ".."
+	xlol "../x-go-lol"
 )
 
 type WatchSummonerCommand struct {
@@ -53,7 +54,18 @@ func (x *WatchSummonerCommand) Execute(args []string) error {
 
 		if currentGame != nil {
 			log.Printf("%s is in game, we start download it", summoner.Name)
-			err = i.manager.Download(i.region, currentGame.ID, currentGame.Observer.EncryptionKey)
+
+			api, err := xlol.NewSpectateAPI(i.region, currentGame.ID)
+			if err != nil {
+				return err
+			}
+			//spectate the game
+			replay, err := api.SpectateGame(currentGame.Observer.EncryptionKey)
+			if err != nil {
+				return err
+			}
+
+			err = i.manager.Store(replay)
 			if err != nil {
 				return err
 			}
