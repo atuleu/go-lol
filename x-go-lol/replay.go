@@ -56,20 +56,24 @@ func (l KeyFrameList) Swap(i, j int) {
 type ReplayDataLoader interface {
 	HasChunk(ChunkID) bool
 	HasKeyFrame(KeyFrameID) bool
+	HasEndOfGame() bool
 	OpenChunk(ChunkID) (io.ReadCloser, error)
+	OpenEndOfGame(ChunkID) (io.ReadCLoser, error)
 	OpenKeyFrame(KeyFrameID) (io.ReadCloser, error)
 }
 
 type ReplayDataWriter interface {
 	CreateChunk(ChunkID) (io.WriteCloser, error)
 	CreateKeyFrame(KeyFrameID) (io.WriteCloser, error)
+	CreateEndOfGame() (io.WriteCloser, error)
 }
 
 //  Replay is a in memory structure that represents game data
 type Replay struct {
-	Chunks         []Chunk
-	KeyFrames      []KeyFrame
-	EndOfGameStats []byte
+	Chunks    []Chunk
+	KeyFrames []KeyFrame
+
+	endOfGameStats []byte
 
 	chunksByID   map[ChunkID]int
 	keyframeByID map[KeyFrameID]int
@@ -301,6 +305,17 @@ func (d *Replay) check(loader ReplayDataLoader) error {
 		}
 
 	}
+
+	if leb(c.endOfGameStats) != 0 {
+		return nil
+	}
+	if loader == nil {
+		return fmt.Errorf("Missing end of game stat data, and no loader defined")
+	}
+
+	if loader.HasEndOfGame() == false {
+		return fmt.Errorf("Missing end of game stat data")
+	}
 	return nil
 }
 
@@ -361,6 +376,16 @@ func (d *Replay) Load(loader ReplayDataLoader) error {
 			return fmt.Errorf("Could not read KeyFrame %d data:  %s", c.KeyFrame, err)
 		}
 	}
+
+	r, err := loader.OpenEndOfGame()
+	if err != nil {
+		return fmt.Errorf("Could not open End Of Game Stat: %s", err)
+	}
+	defer r.Close()
+	d.endOfGameStats, err = ioutil.ReadAll(r)
+	if err != nil {
+		return fmt.Errorf("Could not read end of game stat data: %s", err)
+	}
 	return nil
 }
 
@@ -394,6 +419,15 @@ func (d *Replay) Save(writer ReplayDataWriter) error {
 			return fmt.Errorf("Could not write Chunk %d data: %s", c.KeyFrame, err)
 		}
 
+	}
+	w, err := loader.CreateEndOfGame()
+	if err != nil {
+		return fmt.Errorf("Could not create end of game stat data: %s", err)
+	}
+	defer w.Close()
+	_, err = io.Copy(w, bytes.NewBuffer(d.endOfGameStats))
+	if err != nil {
+		return fmt.Errorf("Could not write end of game stat data: %s", err)
 	}
 	return nil
 }
