@@ -17,16 +17,21 @@ type Chunk struct {
 	data     []byte
 }
 
+// A ChunkList is slice of Chunk that implements sort.Interface
 type ChunkList []Chunk
 
+// Len returns the length of the ChunkList
 func (l ChunkList) Len() int {
 	return len(l)
 }
 
+// Less returns true if element in i should be sorted before element
+// in j in the ChunkList
 func (l ChunkList) Less(i, j int) bool {
 	return l[i].ID < l[j].ID
 }
 
+// Swap swaps the element placed in i and j in the ChunkList
 func (l ChunkList) Swap(i, j int) {
 	l[i], l[j] = l[j], l[i]
 }
@@ -38,37 +43,46 @@ type KeyFrame struct {
 	data   []byte
 }
 
+// A KeyFrameList is slice of KeyFrame that implements sort.Interface
 type KeyFrameList []KeyFrame
 
+// Len returns the length of the KeyFrameList
 func (l KeyFrameList) Len() int {
 	return len(l)
 }
 
+// Less returns true if element in i should be sorted before element
+// in j in the KeyFrameList
 func (l KeyFrameList) Less(i, j int) bool {
 	return l[i].ID < l[j].ID
 }
 
+// Swap swaps the element placed in i and j in the KeyFrameList
 func (l KeyFrameList) Swap(i, j int) {
 	l[i], l[j] = l[j], l[i]
 }
 
-// A ReplayDataLoader can load data of Chunk and KeyFrame.
+// A ReplayDataLoader can load all data of a Replay
 type ReplayDataLoader interface {
 	HasChunk(ChunkID) bool
 	HasKeyFrame(KeyFrameID) bool
-	HasEndOfGame() bool
+	HasEndOfGameStats() bool
+	Open() (io.ReadCloser, error)
 	OpenChunk(ChunkID) (io.ReadCloser, error)
-	OpenEndOfGame(ChunkID) (io.ReadCLoser, error)
 	OpenKeyFrame(KeyFrameID) (io.ReadCloser, error)
+	OpenEndOfGameStats() (io.ReadCloser, error)
 }
 
+// A ReplayDataWriter can be used to write data of a replay
 type ReplayDataWriter interface {
+	Create() (io.WriteCloser, error)
 	CreateChunk(ChunkID) (io.WriteCloser, error)
 	CreateKeyFrame(KeyFrameID) (io.WriteCloser, error)
-	CreateEndOfGame() (io.WriteCloser, error)
+	CreateEndOfGameStats() (io.WriteCloser, error)
 }
 
-//  Replay is a in memory structure that represents game data
+// A Replay is a in memory structure that represent all data that is
+// needed to spectate a LoL game.
 type Replay struct {
 	Chunks    []Chunk
 	KeyFrames []KeyFrame
@@ -85,6 +99,7 @@ type Replay struct {
 	EncryptionKey string
 }
 
+// NewEmptyReplay creates a new empty replay
 func NewEmptyReplay() *Replay {
 	return &Replay{
 		Chunks:       nil,
@@ -121,6 +136,8 @@ func (d *Replay) addKeyFrame(kf KeyFrame) {
 	}
 }
 
+// MergeFromMetaData merge the internal Replay data from GameMetadata
+// that can be fetch through the SpectateAPI
 func (d *Replay) MergeFromMetaData(gm GameMetadata) {
 	newValue := reflect.ValueOf(gm)
 	currentValue := reflect.ValueOf(d.MetaData)
@@ -198,6 +215,9 @@ func (d *Replay) appendSortedIfUnique(slice []ChunkID, id ChunkID) []ChunkID {
 	return append(slice[:pos], append([]ChunkID{id}, slice[pos:]...)...)
 }
 
+// MergeFromLastChunkInfo merges Replay internal data with the one
+// that could be fetch with a LastChunkInfo structure, obtained
+// through the SpectateAPI
 func (d *Replay) MergeFromLastChunkInfo(ci LastChunkInfo) {
 	if _, ok := d.chunksByID[ci.ID]; ok == false {
 		//we create a new Chunk
@@ -238,6 +258,8 @@ func (d *Replay) MergeFromLastChunkInfo(ci LastChunkInfo) {
 	d.KeyFrames[kfIdx].Chunks = d.appendSortedIfUnique(d.KeyFrames[kfIdx].Chunks, ci.ID)
 }
 
+// Consolidate is reconstructing missing internal data (KeyFrame and
+// Chunk association) from the internal data we haev so far.
 func (d *Replay) Consolidate() {
 	if len(d.KeyFrames) == 0 {
 		return
@@ -264,6 +286,10 @@ func (d *Replay) Consolidate() {
 	}
 }
 
+// check is checking for integrity of all Replay data, i.e. that all
+// data is loaded in memory or is accessible through the given
+// loader. Passing a nil loader, will ensure that all required data is
+// loaded in memory
 func (d *Replay) check(loader ReplayDataLoader) error {
 	if len(d.Chunks) == 0 {
 		return nil
@@ -306,14 +332,14 @@ func (d *Replay) check(loader ReplayDataLoader) error {
 
 	}
 
-	if leb(c.endOfGameStats) != 0 {
+	if len(d.endOfGameStats) != 0 {
 		return nil
 	}
 	if loader == nil {
 		return fmt.Errorf("Missing end of game stat data, and no loader defined")
 	}
 
-	if loader.HasEndOfGame() == false {
+	if loader.HasEndOfGameStats() == false {
 		return fmt.Errorf("Missing end of game stat data")
 	}
 	return nil
@@ -323,6 +349,9 @@ type replayForJSON struct {
 	Replay
 }
 
+// UnmarshalJSON unmarshals a JSON version of a Replay. Indeed some
+// internal field are not exported to JSON and need to be
+// reconstructed after a standard unmarshal operation
 func (d *Replay) UnmarshalJSON(text []byte) error {
 	tmp := replayForJSON{}
 	if err := json.Unmarshal(text, tmp); err != nil {
@@ -346,7 +375,9 @@ func (d *Replay) UnmarshalJSON(text []byte) error {
 	return nil
 }
 
-func (d *Replay) Load(loader ReplayDataLoader) error {
+// LoadData is loading in memory all binary data of Replay (KeyFrame,
+// Chunk and EndOfGameStats) through a ReplayDataLoader
+func (d *Replay) LoadData(loader ReplayDataLoader) error {
 	if err := d.check(loader); err != nil {
 		return err
 	}
@@ -377,7 +408,7 @@ func (d *Replay) Load(loader ReplayDataLoader) error {
 		}
 	}
 
-	r, err := loader.OpenEndOfGame()
+	r, err := loader.OpenEndOfGameStats()
 	if err != nil {
 		return fmt.Errorf("Could not open End Of Game Stat: %s", err)
 	}
@@ -389,7 +420,8 @@ func (d *Replay) Load(loader ReplayDataLoader) error {
 	return nil
 }
 
-func (d *Replay) Save(writer ReplayDataWriter) error {
+// SaveData is saving all binary data of a Replay through a ReplayDataWriter
+func (d *Replay) SaveData(writer ReplayDataWriter) error {
 	if err := d.check(nil); err != nil {
 		return err
 	}
@@ -420,7 +452,7 @@ func (d *Replay) Save(writer ReplayDataWriter) error {
 		}
 
 	}
-	w, err := loader.CreateEndOfGame()
+	w, err := writer.CreateEndOfGameStats()
 	if err != nil {
 		return fmt.Errorf("Could not create end of game stat data: %s", err)
 	}
@@ -430,4 +462,62 @@ func (d *Replay) Save(writer ReplayDataWriter) error {
 		return fmt.Errorf("Could not write end of game stat data: %s", err)
 	}
 	return nil
+}
+
+// LoadReplay is loading the Replay data (without loading binary data
+// like KeyFrame, Chunk and EndOfGameStats) from a ReplayDataLoader
+func LoadReplay(loader ReplayDataLoader) (*Replay, error) {
+	if loader == nil {
+		return nil, fmt.Errorf("Empty data loader")
+	}
+	r, err := loader.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	dec := json.NewDecoder(r)
+	res := &Replay{}
+	err = dec.Decode(res)
+	if err != nil {
+		return nil, err
+	}
+	err = res.check(loader)
+	if err != nil {
+		return nil, fmt.Errorf("Incomplete replay: %s", err)
+	}
+	return res, nil
+}
+
+// LoadReplayWithData is loading all of a Replay data from a
+// ReplayDataLoader
+func LoadReplayWithData(loader ReplayDataLoader) (*Replay, error) {
+	res, err := LoadReplay(loader)
+	if err != nil {
+		return nil, err
+	}
+	return res, res.LoadData(loader)
+}
+
+// Save is writing all Replay data (without binary data like KeyFrame,
+// Chunk and EndOfGameStats) through a ReplayDataWriter
+func (d *Replay) Save(writer ReplayDataWriter) error {
+	if err := d.check(nil); err != nil {
+		return fmt.Errorf("Could not save replay: %s", err)
+	}
+
+	w, err := writer.Create()
+	if err != nil {
+		return err
+	}
+	enc := json.NewEncoder(w)
+	return enc.Encode(d)
+}
+
+// SaveWithData is writing all of Replay data through a
+// ReplayDataWriter
+func (d *Replay) SaveWithData(writer ReplayDataWriter) error {
+	if err := d.Save(writer); err != nil {
+		return err
+	}
+	return d.SaveData(writer)
 }

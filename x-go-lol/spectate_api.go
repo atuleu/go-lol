@@ -40,7 +40,8 @@ const (
 	EndOfGameStats SpectateFunction = "endOfGameStats"
 	//Version returns current version
 	Version SpectateFunction = "version"
-	Prefix  string           = "/observer-mode/rest/consumer/"
+	// Prefix is the prefix of the spectate API
+	Prefix string = "/observer-mode/rest/consumer/"
 )
 
 // NewSpectateAPI creates a new API endpoint dedicated to get data for
@@ -75,6 +76,8 @@ func (a *SpectateAPI) Format(function SpectateFunction, param int) string {
 		a.id)
 }
 
+// VersionURL is returning the URL for getting the SpectateAPI version
+// used on the distant server.
 func (a *SpectateAPI) VersionURL() string {
 	return fmt.Sprintf("http://%s%s%s", a.region.SpectatorURL(), Prefix, Version)
 }
@@ -137,6 +140,7 @@ func (a *SpectateAPI) ReadAll(function SpectateFunction, param int, w io.Writer)
 	return err
 }
 
+// Version is getting from the Server the version currently used.
 func (a *SpectateAPI) Version() (string, error) {
 	url := fmt.Sprintf("http://%s%s%s", a.region.PlatformID(), Prefix, Version)
 	resp, err := http.Get(url)
@@ -166,6 +170,9 @@ func (a *SpectateAPI) readBinary(fn SpectateFunction, id int, onSuccess func(), 
 	return res.Bytes(), nil
 }
 
+// SpectateGame is spectating a Game from the SpectateAPI endpoint. It
+// is fetching all data needed to spectate the Replay again and checks
+// for its integrity.
 func (a *SpectateAPI) SpectateGame(encryptionKey string) (*Replay, error) {
 
 	replay := NewEmptyReplay()
@@ -252,6 +259,12 @@ func (a *SpectateAPI) SpectateGame(encryptionKey string) (*Replay, error) {
 	if err != nil {
 		return nil, err
 	}
-	replay.EndOfGameStats = eog.Bytes()
+	replay.endOfGameStats = eog.Bytes()
+
+	err = replay.check(nil)
+	if err != nil {
+		return nil, fmt.Errorf("New downloaded replay is inconsistent: %s", err)
+	}
+
 	return replay, nil
 }
