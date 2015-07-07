@@ -106,6 +106,10 @@ func NewEmptyReplay() *Replay {
 		KeyFrames:    nil,
 		chunksByID:   make(map[ChunkID]int),
 		keyframeByID: make(map[KeyFrameID]int),
+		MetaData: GameMetadata{
+			PendingAvailableChunkInfo:    []ChunkInfo{},
+			PendingAvailableKeyFrameInfo: []KeyFrameInfo{},
+		},
 	}
 }
 
@@ -140,23 +144,27 @@ func (d *Replay) addKeyFrame(kf KeyFrame) {
 // that can be fetch through the SpectateAPI
 func (d *Replay) MergeFromMetaData(gm GameMetadata) {
 	newValue := reflect.ValueOf(gm)
-	currentValue := reflect.ValueOf(d.MetaData)
+	currentValue := reflect.ValueOf(&(d.MetaData))
 
 	for i := 0; i < newValue.NumField(); i++ {
 		newField := newValue.Field(i)
-		currentField := currentValue.Field(i)
+		currentField := currentValue.Elem().Field(i)
 		switch newField.Kind() {
 		case reflect.String:
-			if len(newValue.String()) != 0 {
+			if len(newField.String()) != 0 {
 				currentField.SetString(newField.String())
 			}
 		case reflect.Int:
 			fallthrough
 		case reflect.Int64:
-			if newValue.Int() > 0 {
-				currentField.SetInt(newValue.Int())
+			if newField.Int() != 0 {
+				currentField.SetInt(newField.Int())
 			}
 		}
+	}
+
+	if len(gm.GameKey.PlatformID) != 0 && len(d.MetaData.GameKey.PlatformID) == 0 {
+		d.MetaData.GameKey = gm.GameKey
 	}
 
 	if gm.StartTime.IsZero() == false {
