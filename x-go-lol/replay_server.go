@@ -10,7 +10,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
+
+type lastChunkInfoGenerator func() LastChunkInfo
 
 // A ReplayServer can serve over http a replay.
 type ReplayServer struct {
@@ -18,9 +21,10 @@ type ReplayServer struct {
 	r                  *Replay
 	startStreamChunk   ChunkID
 	metadataRequester  chan GameMetadata
-	chunkInfoRequester chan LastChunkInfo
+	chunkInfoRequester chan lastChunkInfoGenerator
 	finish             chan struct{}
 	listener           net.Listener
+	timeDivisor        DurationMs
 }
 
 // NewReplayServer initializes a ReplayServer from data located somewhere
@@ -48,6 +52,7 @@ func NewReplayServer(loader ReplayDataLoader) (*ReplayServer, error) {
 		break
 	}
 
+	res.timeDivisor = 10
 	return res, nil
 }
 
@@ -106,18 +111,41 @@ func (h *ReplayServer) generateMetadata(currentChunk ChunkID) GameMetadata {
 	return res
 }
 
-func (h *ReplayServer) generateLastChunkInfo(currentChunk ChunkID) LastChunkInfo {
-	c := h.r.Chunks[h.r.chunksByID[currentChunk]]
-	kf := h.r.KeyFrames[h.r.keyframeByID[c.KeyFrame]]
-	return LastChunkInfo{
+func toDurationMs(d time.Duration) DurationMs {
+	return DurationMs(d / time.Millisecond)
+}
+
+func (h *ReplayServer) generateLastChunkInfo(currentChunk ChunkID, emitDate time.Time) (time.Time, lastChunkInfoGenerator) {
+	c, ok := h.r.ChunkByID(currentChunk)
+	if ok == false {
+		panic(fmt.Sprintf("Missing chunk %d", currentChunk))
+	}
+
+	kf, ok := h.r.KeyFrameByID(c.KeyFrame)
+	if ok == false {
+		panic(fmt.Sprintf("Missing keyframe %d", c.KeyFrame))
+	}
+
+	res := LastChunkInfo{
 		ID:                   currentChunk,
 		AssociatedKeyFrameID: c.KeyFrame,
 		NextChunkID:          kf.NextChunkID,
-		AvailableSince:       0,
 		EndStartupChunkID:    ChunkID(h.r.MetaData.EndStartupChunkID),
 		StartGameChunkID:     ChunkID(h.r.MetaData.StartGameChunkID),
 		EndGameChunkID:       ChunkID(h.r.MetaData.EndGameChunkID),
-		NextAvailableChunk:   0,
+		Duration:             c.Duration,
+	}
+
+	nextDate := emitDate.Add((res.Duration / h.timeDivisor).Duration())
+	return nextDate, func() LastChunkInfo {
+		now := time.Now()
+		res.AvailableSince = DurationMs(now.Sub(emitDate))
+		if now.Before(nextDate) {
+			res.NextAvailableChunk = toDurationMs(nextDate.Sub(now))
+		} else {
+			res.NextAvailableChunk = 0
+		}
+		return res
 	}
 }
 
@@ -128,8 +156,16 @@ func handleGetMetadata(h *ReplayServer, parts []string, w http.ResponseWriter, r
 		return
 	}
 
+	//request metadata
+	md, ok := <-h.metadataRequester
+	if ok == false {
+		//internal loop is not running
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
 	w.Header()["Content-Type"] = []string{"application/json"}
-	data, err := json.Marshal(<-h.metadataRequester)
+	data, err := json.Marshal(md)
 	if err != nil {
 		panic(err)
 	}
@@ -146,9 +182,14 @@ func handleGetLastChunkInfo(h *ReplayServer, parts []string, w http.ResponseWrit
 		return
 	}
 
+	ciGen, ok := <-h.chunkInfoRequester
+	if ok == false {
+		//internal loop is not running
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
 	w.Header()["Content-Type"] = []string{"application/json"}
-
-	data, err := json.Marshal(<-h.chunkInfoRequester)
+	data, err := json.Marshal(ciGen())
 	if err != nil {
 		panic(err)
 	}
@@ -156,7 +197,6 @@ func handleGetLastChunkInfo(h *ReplayServer, parts []string, w http.ResponseWrit
 	if err != nil {
 		panic(err)
 	}
-
 }
 
 func handleGetDataChunk(h *ReplayServer, parts []string, w http.ResponseWriter, req *http.Request) {
@@ -249,28 +289,90 @@ func (h *ReplayServer) Close() error {
 	if h.listener == nil {
 		return fmt.Errorf("Server is not listening")
 	}
-	close(h.finish)
+	// this will close the intern loop, making new dynamic request
+	// returnning 404 and exiting, we defer it because we want it to
+	// happen after listener is closed.
+	defer close(h.finish)
+	// This will close the listening for new connection
 	return h.listener.Close()
 }
 
 func (h *ReplayServer) internLoop() {
-	currentChunk := h.startStreamChunk
 	shouldContinue := true
 	currentChunkID := h.startStreamChunk
+	currentMetadata := h.generateMetadata(currentChunkID)
+	c, ok := h.r.ChunkByID(currentChunkID)
+	if ok == false {
+		panic(fmt.Sprintf("Missing chunk %d", currentChunkID))
+	}
+	kf, ok := h.r.KeyFrameByID(c.KeyFrame)
+	if ok == false {
+		panic(fmt.Sprintf("Missing kf %d", c.KeyFrame))
+	}
+
+	startChunkInfo := LastChunkInfo{
+		ID:                   c.ID,
+		AvailableSince:       0,
+		NextAvailableChunk:   c.Duration / h.timeDivisor,
+		AssociatedKeyFrameID: kf.ID,
+		NextChunkID:          kf.NextChunkID,
+		EndStartupChunkID:    ChunkID(h.r.MetaData.EndStartupChunkID),
+		StartGameChunkID:     ChunkID(h.r.MetaData.StartGameChunkID),
+		EndGameChunkID:       ChunkID(h.r.MetaData.EndGameChunkID),
+		Duration:             c.Duration,
+	}
+	currentGenerator := func() LastChunkInfo {
+		return startChunkInfo
+	}
+
+	//internal channel
+	tick := make(chan bool)
+	defer close(tick)
+
+	bootstrapped := false
+	bootstrap := func() {
+		if bootstrapped == false {
+			bootstrapped = true
+			go func() {
+				<-time.After(c.Duration.Duration() / 10)
+				tick <- true
+			}()
+		}
+	}
 
 	for shouldContinue {
 		select {
 		case <-h.finish:
+			// finish is closed, likely by a call to Close, so we stop
+			// the loop.
 			shouldContinue = false
-		case h.metadataRequester <- h.generateMetadata(currentChunk):
-			fallthrough
-		case h.chunkInfoRequester <- h.generateLastChunkInfo(currentChunk):
-			//TODO start first time the ticker
-			//TODO : add the ticker case
+		case h.metadataRequester <- currentMetadata:
+			bootstrap()
+		case h.chunkInfoRequester <- currentGenerator:
+			bootstrap()
+		case <-tick:
+			if currentChunkID >= ChunkID(h.r.MetaData.EndGameChunkID) {
+				// internal error catchup
+				continue
+			}
+			currentChunkID++
+			emitDate := time.Now()
+			log.Printf("Incrementing to chunk %d", currentChunkID)
+			currentMetadata = h.generateMetadata(currentChunkID)
+			var nextDate time.Time
+			nextDate, currentGenerator = h.generateLastChunkInfo(currentChunkID, emitDate)
+			if currentChunkID < ChunkID(h.r.MetaData.EndGameChunkID) {
+				//not at the end, we will increment the counter in the future
+				go func() {
+					<-time.After(nextDate.Sub(emitDate))
+					tick <- true
+				}()
+			}
 		}
 	}
 
-	// this will close pending request
+	// this will make request pending on this data exiting with a
+	// http.StatusNotFound
 	close(h.metadataRequester)
 	close(h.chunkInfoRequester)
 }
@@ -286,7 +388,7 @@ func (h *ReplayServer) ListenAndServe(addr string) error {
 	}
 
 	h.metadataRequester = make(chan GameMetadata)
-	h.chunkInfoRequester = make(chan LastChunkInfo)
+	h.chunkInfoRequester = make(chan lastChunkInfoGenerator)
 	h.finish = make(chan struct{})
 	go h.internLoop()
 

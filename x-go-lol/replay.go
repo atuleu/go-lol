@@ -529,3 +529,19 @@ func (d *Replay) SaveWithData(writer ReplayDataWriter) error {
 	}
 	return d.SaveData(writer)
 }
+
+// ChunkByID returns a chunk from its ChunkID
+func (d *Replay) ChunkByID(id ChunkID) (*Chunk, bool) {
+	if cidx, ok := d.chunksByID[id]; ok == true {
+		return &(d.Chunks[cidx]), true
+	}
+	return nil, false
+}
+
+// KeyFrameByID returns a KeyFrame from its ChunkID
+func (d *Replay) KeyFrameByID(id KeyFrameID) (*KeyFrame, bool) {
+	if kfidx, ok := d.keyframeByID[id]; ok == true {
+		return &(d.KeyFrames[kfidx]), true
+	}
+	return nil, false
+}
