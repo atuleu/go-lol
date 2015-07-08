@@ -113,38 +113,32 @@ func NewEmptyReplay() *Replay {
 	}
 }
 
-func (d *Replay) addChunk(c Chunk) {
+func (r *Replay) addChunk(c Chunk) {
 
-	if _, ok := d.chunksByID[c.ID]; ok == true {
+	if _, ok := r.chunksByID[c.ID]; ok == true {
 		return
 	}
 
-	d.Chunks = append(d.Chunks, c)
-	sort.Sort(ChunkList(d.Chunks))
-	d.chunksByID = make(map[ChunkID]int)
-	for i, cc := range d.Chunks {
-		d.chunksByID[cc.ID] = i
-	}
+	r.Chunks = append(r.Chunks, c)
+	sort.Sort(ChunkList(r.Chunks))
+	r.rebuildChunksMap()
 }
 
-func (d *Replay) addKeyFrame(kf KeyFrame) {
-	if _, ok := d.keyframeByID[kf.ID]; ok == true {
+func (r *Replay) addKeyFrame(kf KeyFrame) {
+	if _, ok := r.keyframeByID[kf.ID]; ok == true {
 		return
 	}
 
-	d.KeyFrames = append(d.KeyFrames, kf)
-	sort.Sort(KeyFrameList(d.KeyFrames))
-	d.keyframeByID = make(map[KeyFrameID]int)
-	for i, kkf := range d.KeyFrames {
-		d.keyframeByID[kkf.ID] = i
-	}
+	r.KeyFrames = append(r.KeyFrames, kf)
+	sort.Sort(KeyFrameList(r.KeyFrames))
+	r.rebuildKeyFramesMap()
 }
 
 // MergeFromMetaData merge the internal Replay data from GameMetadata
 // that can be fetch through the SpectateAPI
-func (d *Replay) MergeFromMetaData(gm GameMetadata) {
+func (r *Replay) MergeFromMetaData(gm GameMetadata) {
 	newValue := reflect.ValueOf(gm)
-	currentValue := reflect.ValueOf(&(d.MetaData))
+	currentValue := reflect.ValueOf(&(r.MetaData))
 
 	for i := 0; i < newValue.NumField(); i++ {
 		newField := newValue.Field(i)
@@ -163,31 +157,31 @@ func (d *Replay) MergeFromMetaData(gm GameMetadata) {
 		}
 	}
 
-	if len(gm.GameKey.PlatformID) != 0 && len(d.MetaData.GameKey.PlatformID) == 0 {
-		d.MetaData.GameKey = gm.GameKey
+	if len(gm.GameKey.PlatformID) != 0 && len(r.MetaData.GameKey.PlatformID) == 0 {
+		r.MetaData.GameKey = gm.GameKey
 	}
 
 	if gm.StartTime.IsZero() == false {
-		d.MetaData.StartTime = gm.StartTime
+		r.MetaData.StartTime = gm.StartTime
 	}
 
 	if gm.CreateTime.IsZero() == false {
-		d.MetaData.CreateTime = gm.CreateTime
+		r.MetaData.CreateTime = gm.CreateTime
 	}
 
 	for _, ci := range gm.PendingAvailableChunkInfo {
-		if _, ok := d.chunksByID[ci.ID]; ok == true {
+		if _, ok := r.chunksByID[ci.ID]; ok == true {
 			continue
 		}
 		newChunk := Chunk{
 			ChunkInfo: ci,
 		}
 
-		d.addChunk(newChunk)
+		r.addChunk(newChunk)
 	}
 
 	for _, kfi := range gm.PendingAvailableKeyFrameInfo {
-		if _, ok := d.keyframeByID[kfi.ID]; ok == true {
+		if _, ok := r.keyframeByID[kfi.ID]; ok == true {
 			continue
 		}
 		newKF := KeyFrame{
@@ -195,16 +189,16 @@ func (d *Replay) MergeFromMetaData(gm GameMetadata) {
 		}
 
 		newKF.Chunks = []ChunkID{kfi.NextChunkID}
-		if idx, ok := d.chunksByID[kfi.NextChunkID]; ok == true {
-			d.Chunks[idx].KeyFrame = kfi.ID
+		if idx, ok := r.chunksByID[kfi.NextChunkID]; ok == true {
+			r.Chunks[idx].KeyFrame = kfi.ID
 		}
 
-		d.addKeyFrame(newKF)
+		r.addKeyFrame(newKF)
 	}
 
 }
 
-func (d *Replay) appendSortedIfUnique(slice []ChunkID, id ChunkID) []ChunkID {
+func (r *Replay) appendSortedIfUnique(slice []ChunkID, id ChunkID) []ChunkID {
 	pos := -1
 	for i, cid := range slice {
 		if cid == id {
@@ -226,8 +220,8 @@ func (d *Replay) appendSortedIfUnique(slice []ChunkID, id ChunkID) []ChunkID {
 // MergeFromLastChunkInfo merges Replay internal data with the one
 // that could be fetch with a LastChunkInfo structure, obtained
 // through the SpectateAPI
-func (d *Replay) MergeFromLastChunkInfo(ci LastChunkInfo) {
-	if _, ok := d.chunksByID[ci.ID]; ok == false {
+func (r *Replay) MergeFromLastChunkInfo(ci LastChunkInfo) {
+	if _, ok := r.chunksByID[ci.ID]; ok == false {
 		//we create a new Chunk
 		res := Chunk{
 			ChunkInfo: ChunkInfo{
@@ -237,14 +231,14 @@ func (d *Replay) MergeFromLastChunkInfo(ci LastChunkInfo) {
 			KeyFrame: ci.AssociatedKeyFrameID,
 		}
 
-		if lastIdx, ok := d.chunksByID[ci.ID-1]; ok == true {
-			res.ReceivedTime.Time = d.Chunks[lastIdx].ReceivedTime.Add(d.Chunks[lastIdx].Duration.Duration())
+		if lastIdx, ok := r.chunksByID[ci.ID-1]; ok == true {
+			res.ReceivedTime.Time = r.Chunks[lastIdx].ReceivedTime.Add(r.Chunks[lastIdx].Duration.Duration())
 		}
 
-		d.addChunk(res)
+		r.addChunk(res)
 	}
 
-	kfIdx, ok := d.keyframeByID[ci.AssociatedKeyFrameID]
+	kfIdx, ok := r.keyframeByID[ci.AssociatedKeyFrameID]
 	if ok == false {
 
 		res := KeyFrame{
@@ -255,38 +249,38 @@ func (d *Replay) MergeFromLastChunkInfo(ci LastChunkInfo) {
 			Chunks: []ChunkID{ci.ID},
 		}
 
-		if cIdx, ok := d.chunksByID[ci.NextChunkID]; ok == true {
-			res.ReceivedTime = d.Chunks[cIdx].ReceivedTime
+		if cIdx, ok := r.chunksByID[ci.NextChunkID]; ok == true {
+			res.ReceivedTime = r.Chunks[cIdx].ReceivedTime
 		}
 
-		d.addKeyFrame(res)
-		kfIdx = d.keyframeByID[ci.AssociatedKeyFrameID]
+		r.addKeyFrame(res)
+		kfIdx = r.keyframeByID[ci.AssociatedKeyFrameID]
 	}
 
-	d.KeyFrames[kfIdx].Chunks = d.appendSortedIfUnique(d.KeyFrames[kfIdx].Chunks, ci.ID)
+	r.KeyFrames[kfIdx].Chunks = r.appendSortedIfUnique(r.KeyFrames[kfIdx].Chunks, ci.ID)
 }
 
 // Consolidate is reconstructing missing internal data (KeyFrame and
 // Chunk association) from the internal data we haev so far.
-func (d *Replay) Consolidate() {
-	if len(d.KeyFrames) == 0 {
+func (r *Replay) Consolidate() {
+	if len(r.KeyFrames) == 0 {
 		return
 	}
 
-	for cIdx, c := range d.Chunks {
+	for cIdx, c := range r.Chunks {
 		if c.KeyFrame != 0 {
 			continue
 		}
 
-		if d.KeyFrames[0].NextChunkID > c.ID {
+		if r.KeyFrames[0].NextChunkID > c.ID {
 			// in that case, we could not determine the associated
 			// KeyFrame with certainty
 			continue
 		}
-		lastKFID := d.KeyFrames[0].ID
-		for _, kf := range d.KeyFrames {
+		lastKFID := r.KeyFrames[0].ID
+		for _, kf := range r.KeyFrames {
 			if kf.NextChunkID > c.ID {
-				d.Chunks[cIdx].KeyFrame = lastKFID
+				r.Chunks[cIdx].KeyFrame = lastKFID
 				break
 			}
 			lastKFID = kf.ID
@@ -298,15 +292,15 @@ func (d *Replay) Consolidate() {
 // data is loaded in memory or is accessible through the given
 // loader. Passing a nil loader, will ensure that all required data is
 // loaded in memory
-func (d *Replay) check(loader ReplayDataLoader) error {
-	if len(d.Chunks) == 0 {
+func (r *Replay) check(loader ReplayDataLoader) error {
+	if len(r.Chunks) == 0 {
 		return nil
 	}
 
 	// checks that we do not miss a chunk, and all have an associated
 	// keyFrame, and the keyframe is available
 	noKeyFrameIsFailure := false
-	for _, c := range d.Chunks {
+	for _, c := range r.Chunks {
 		if c.KeyFrame > 0 {
 			noKeyFrameIsFailure = true
 		} else {
@@ -324,12 +318,12 @@ func (d *Replay) check(loader ReplayDataLoader) error {
 			}
 		}
 
-		kfIdx, ok := d.keyframeByID[c.KeyFrame]
+		kfIdx, ok := r.keyframeByID[c.KeyFrame]
 		if ok == false {
 			return fmt.Errorf("Missing metadata for Keyframe %d (associated with chunk %d)", c.KeyFrame, c.ID)
 		}
 
-		if len(d.KeyFrames[kfIdx].data) == 0 {
+		if len(r.KeyFrames[kfIdx].data) == 0 {
 			if loader == nil {
 				return fmt.Errorf("Data for KeyFrame %d is not loaded, and no loader defined", c.KeyFrame)
 			}
@@ -340,7 +334,7 @@ func (d *Replay) check(loader ReplayDataLoader) error {
 
 	}
 
-	if len(d.endOfGameStats) != 0 {
+	if len(r.endOfGameStats) != 0 {
 		return nil
 	}
 	if loader == nil {
@@ -353,54 +347,24 @@ func (d *Replay) check(loader ReplayDataLoader) error {
 	return nil
 }
 
-type replayForJSON struct {
-	Replay
-}
-
-// UnmarshalJSON unmarshals a JSON version of a Replay. Indeed some
-// internal field are not exported to JSON and need to be
-// reconstructed after a standard unmarshal operation
-func (d *Replay) UnmarshalJSON(text []byte) error {
-	tmp := replayForJSON{}
-	if err := json.Unmarshal(text, tmp); err != nil {
-		return err
-	}
-	d.Chunks = tmp.Chunks
-	d.KeyFrames = tmp.KeyFrames
-	d.MetaData = tmp.MetaData
-	d.Version = tmp.Version
-	d.EncryptionKey = tmp.EncryptionKey
-
-	d.chunksByID = make(map[ChunkID]int)
-	for i, c := range d.Chunks {
-		d.chunksByID[c.ID] = i
-	}
-	d.keyframeByID = make(map[KeyFrameID]int)
-	for i, kf := range d.KeyFrames {
-		d.keyframeByID[kf.ID] = i
-	}
-
-	return nil
-}
-
 // LoadData is loading in memory all binary data of Replay (KeyFrame,
 // Chunk and EndOfGameStats) through a ReplayDataLoader
-func (d *Replay) LoadData(loader ReplayDataLoader) error {
-	if err := d.check(loader); err != nil {
+func (r *Replay) LoadData(loader ReplayDataLoader) error {
+	if err := r.check(loader); err != nil {
 		return err
 	}
-	for i, c := range d.Chunks {
-		r, err := loader.OpenChunk(c.ID)
+	for i, c := range r.Chunks {
+		reader, err := loader.OpenChunk(c.ID)
 		if err != nil {
 			return fmt.Errorf("Could not open Chunk %d: %s", c.ID, err)
 		}
-		defer r.Close()
-		d.Chunks[i].data, err = ioutil.ReadAll(r)
+		defer reader.Close()
+		r.Chunks[i].data, err = ioutil.ReadAll(reader)
 		if err != nil {
 			return fmt.Errorf("COuld not read Chunk %d data:  %s", c.ID, err)
 		}
 
-		kfIdx, ok := d.keyframeByID[c.KeyFrame]
+		kfIdx, ok := r.keyframeByID[c.KeyFrame]
 		if ok == false {
 			return fmt.Errorf("Internal consistency error, Replay.check should hae reported an error")
 		}
@@ -410,18 +374,18 @@ func (d *Replay) LoadData(loader ReplayDataLoader) error {
 			return fmt.Errorf("Could not open KeyFrame %d: %s", c.KeyFrame, err)
 		}
 		defer rr.Close()
-		d.KeyFrames[kfIdx].data, err = ioutil.ReadAll(rr)
+		r.KeyFrames[kfIdx].data, err = ioutil.ReadAll(rr)
 		if err != nil {
 			return fmt.Errorf("Could not read KeyFrame %d data:  %s", c.KeyFrame, err)
 		}
 	}
 
-	r, err := loader.OpenEndOfGameStats()
+	reader, err := loader.OpenEndOfGameStats()
 	if err != nil {
 		return fmt.Errorf("Could not open End Of Game Stat: %s", err)
 	}
-	defer r.Close()
-	d.endOfGameStats, err = ioutil.ReadAll(r)
+	defer reader.Close()
+	r.endOfGameStats, err = ioutil.ReadAll(reader)
 	if err != nil {
 		return fmt.Errorf("Could not read end of game stat data: %s", err)
 	}
@@ -429,12 +393,12 @@ func (d *Replay) LoadData(loader ReplayDataLoader) error {
 }
 
 // SaveData is saving all binary data of a Replay through a ReplayDataWriter
-func (d *Replay) SaveData(writer ReplayDataWriter) error {
-	if err := d.check(nil); err != nil {
+func (r *Replay) SaveData(writer ReplayDataWriter) error {
+	if err := r.check(nil); err != nil {
 		return err
 	}
 
-	for _, c := range d.Chunks {
+	for _, c := range r.Chunks {
 		w, err := writer.CreateChunk(c.ID)
 		if err != nil {
 			return fmt.Errorf("Could not create Chunk %d: %s", c.ID, err)
@@ -444,7 +408,7 @@ func (d *Replay) SaveData(writer ReplayDataWriter) error {
 		if err != nil {
 			return fmt.Errorf("Could not write Chunk %d data: %s", c.ID, err)
 		}
-		kfIdx, ok := d.keyframeByID[c.KeyFrame]
+		kfIdx, ok := r.keyframeByID[c.KeyFrame]
 		if ok == false {
 			return fmt.Errorf("Internal consistency error, Replay.check should hae reported an error")
 		}
@@ -454,7 +418,7 @@ func (d *Replay) SaveData(writer ReplayDataWriter) error {
 			return fmt.Errorf("Could not create KeyFrame %d: %s", c.KeyFrame, err)
 		}
 		defer ww.Close()
-		_, err = io.Copy(ww, bytes.NewBuffer(d.KeyFrames[kfIdx].data))
+		_, err = io.Copy(ww, bytes.NewBuffer(r.KeyFrames[kfIdx].data))
 		if err != nil {
 			return fmt.Errorf("Could not write Chunk %d data: %s", c.KeyFrame, err)
 		}
@@ -465,11 +429,25 @@ func (d *Replay) SaveData(writer ReplayDataWriter) error {
 		return fmt.Errorf("Could not create end of game stat data: %s", err)
 	}
 	defer w.Close()
-	_, err = io.Copy(w, bytes.NewBuffer(d.endOfGameStats))
+	_, err = io.Copy(w, bytes.NewBuffer(r.endOfGameStats))
 	if err != nil {
 		return fmt.Errorf("Could not write end of game stat data: %s", err)
 	}
 	return nil
+}
+
+func (r *Replay) rebuildChunksMap() {
+	r.chunksByID = make(map[ChunkID]int, len(r.Chunks))
+	for idx, c := range r.Chunks {
+		r.chunksByID[c.ID] = idx
+	}
+}
+
+func (r *Replay) rebuildKeyFramesMap() {
+	r.keyframeByID = make(map[KeyFrameID]int, len(r.KeyFrames))
+	for idx, kf := range r.KeyFrames {
+		r.keyframeByID[kf.ID] = idx
+	}
 }
 
 // LoadReplay is loading the Replay data (without loading binary data
@@ -489,6 +467,9 @@ func LoadReplay(loader ReplayDataLoader) (*Replay, error) {
 	if err != nil {
 		return nil, err
 	}
+	res.rebuildChunksMap()
+	res.rebuildKeyFramesMap()
+
 	err = res.check(loader)
 	if err != nil {
 		return nil, fmt.Errorf("Incomplete replay: %s", err)
@@ -508,8 +489,8 @@ func LoadReplayWithData(loader ReplayDataLoader) (*Replay, error) {
 
 // Save is writing all Replay data (without binary data like KeyFrame,
 // Chunk and EndOfGameStats) through a ReplayDataWriter
-func (d *Replay) Save(writer ReplayDataWriter) error {
-	if err := d.check(nil); err != nil {
+func (r *Replay) Save(writer ReplayDataWriter) error {
+	if err := r.check(nil); err != nil {
 		return fmt.Errorf("Could not save replay: %s", err)
 	}
 
@@ -518,30 +499,30 @@ func (d *Replay) Save(writer ReplayDataWriter) error {
 		return err
 	}
 	enc := json.NewEncoder(w)
-	return enc.Encode(d)
+	return enc.Encode(r)
 }
 
 // SaveWithData is writing all of Replay data through a
 // ReplayDataWriter
-func (d *Replay) SaveWithData(writer ReplayDataWriter) error {
-	if err := d.Save(writer); err != nil {
+func (r *Replay) SaveWithData(writer ReplayDataWriter) error {
+	if err := r.Save(writer); err != nil {
 		return err
 	}
-	return d.SaveData(writer)
+	return r.SaveData(writer)
 }
 
 // ChunkByID returns a chunk from its ChunkID
-func (d *Replay) ChunkByID(id ChunkID) (*Chunk, bool) {
-	if cidx, ok := d.chunksByID[id]; ok == true {
-		return &(d.Chunks[cidx]), true
+func (r *Replay) ChunkByID(id ChunkID) (*Chunk, bool) {
+	if cidx, ok := r.chunksByID[id]; ok == true {
+		return &(r.Chunks[cidx]), true
 	}
 	return nil, false
 }
 
 // KeyFrameByID returns a KeyFrame from its ChunkID
-func (d *Replay) KeyFrameByID(id KeyFrameID) (*KeyFrame, bool) {
-	if kfidx, ok := d.keyframeByID[id]; ok == true {
-		return &(d.KeyFrames[kfidx]), true
+func (r *Replay) KeyFrameByID(id KeyFrameID) (*KeyFrame, bool) {
+	if kfidx, ok := r.keyframeByID[id]; ok == true {
+		return &(r.KeyFrames[kfidx]), true
 	}
 	return nil, false
 }

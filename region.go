@@ -165,6 +165,9 @@ func (r *Region) SpectatorURL() string {
 func AllDynamicRegion() []*Region {
 	res := make([]*Region, 0, len(regionByID))
 	for _, r := range regionByCode {
+		if len(r.platformID) == 0 || len(r.spectatorURL) == 0 {
+			continue
+		}
 		res = append(res, r)
 	}
 	return res

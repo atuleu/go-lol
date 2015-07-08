@@ -19,8 +19,6 @@ const (
 	expandedFormatVersion string = "1~dev1"
 )
 
-var binRx = regexp.MustCompile(`\A([a-z]+)\.([0-9]{4})\.bin\z`)
-
 // NewExpandedReplayFormatter returns a ReplayDataLoader that will
 // save and load data from directory basedir
 func NewExpandedReplayFormatter(basedir string) (*ExpandedReplayFormatter, error) {
@@ -82,6 +80,29 @@ func (l *ExpandedReplayFormatter) checkCompatible(version string) error {
 	return nil
 }
 
+var binRx = regexp.MustCompile(`\A([a-z]+)\.([0-9]{4})\.bin\z`)
+
+func (l *ExpandedReplayFormatter) checkFileName(filename string) error {
+	m := binRx.FindStringSubmatch(filename)
+	if len(m) != 0 {
+		if m[1] != chunk && m[1] != keyframe {
+			return invalidFileError{fileName: filename, dir: l.basedir}
+		}
+		return nil
+	}
+
+	switch filename {
+	case version:
+		fallthrough
+	case eogStat:
+		fallthrough
+	case replayData:
+	default:
+		return invalidFileError{fileName: filename, dir: l.basedir}
+	}
+	return nil
+}
+
 func (l *ExpandedReplayFormatter) check() error {
 	//check if the directory is empty
 	finfos, err := ioutil.ReadDir(l.basedir)
@@ -119,21 +140,9 @@ func (l *ExpandedReplayFormatter) check() error {
 	}
 
 	for _, inf := range finfos {
-		m := binRx.FindStringSubmatch(inf.Name())
-		if len(m) != 0 {
-			if m[1] != chunk && m[1] != keyframe {
-				return invalidFileError{fileName: inf.Name(), dir: l.basedir}
-			}
-		}
-
-		switch inf.Name() {
-		case version:
-			fallthrough
-		case eogStat:
-			fallthrough
-		case replayData:
-		default:
-			return invalidFileError{fileName: inf.Name(), dir: l.basedir}
+		err = l.checkFileName(inf.Name())
+		if err != nil {
+			return err
 		}
 	}
 

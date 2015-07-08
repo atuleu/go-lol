@@ -162,6 +162,7 @@ func (m *XdgReplayManager) replaysOfRegion(platformID string) []*Replay {
 		if formatter.HasEndOfGameStats() == false {
 			continue
 		}
+
 		r, err := LoadReplay(formatter)
 		if err != nil {
 			continue
