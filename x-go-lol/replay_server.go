@@ -207,6 +207,11 @@ func handleGetDataChunk(h *ReplayServer, parts []string, w http.ResponseWriter, 
 	}
 
 	r, err := h.loader.OpenChunk(ChunkID(param))
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	defer r.Close()
 	w.Header()["Content-Type"] = []string{"application/octet-stream"}
 	_, err = io.Copy(w, r)
 	if err != nil {
@@ -222,6 +227,12 @@ func handleGetKeyFrame(h *ReplayServer, parts []string, w http.ResponseWriter, r
 	}
 
 	r, err := h.loader.OpenKeyFrame(KeyFrameID(param))
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	defer r.Close()
+
 	w.Header()["Content-Type"] = []string{"application/octet-stream"}
 	_, err = io.Copy(w, r)
 	if err != nil {
@@ -262,7 +273,7 @@ var restMapping = map[SpectateFunction]restFunctionHandler{
 // endofgame,chunk, keyframe application/octet-stream
 
 func (h *ReplayServer) handle(w http.ResponseWriter, req *http.Request) {
-	log.Printf("Got request %v", req)
+	log.Printf("Got request %s %s %s from %s", req.Proto, req.Method, req.URL.Path, req.RemoteAddr)
 
 	URL := req.URL.Path
 	if strings.HasPrefix(URL, Prefix) == false {
@@ -333,6 +344,7 @@ func (h *ReplayServer) internLoop() {
 	bootstrap := func() {
 		if bootstrapped == false {
 			bootstrapped = true
+			log.Printf("Started data increment loop")
 			go func() {
 				<-time.After(c.Duration.Duration() / 10)
 				tick <- true
@@ -392,7 +404,15 @@ func (h *ReplayServer) ListenAndServe(addr string) error {
 	h.finish = make(chan struct{})
 	go h.internLoop()
 
-	return http.Serve(h.listener, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	err = http.Serve(h.listener, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		h.handle(w, req)
 	}))
+
+	// Closing the connection will lead to this kind of nasty thing. We
+	// should maybe use some kind of framework or implement a closable
+	// Listener, that will catch the condition
+	if err != nil && strings.HasSuffix(err.Error(), " use of closed network connection") {
+		return nil
+	}
+	return err
 }
