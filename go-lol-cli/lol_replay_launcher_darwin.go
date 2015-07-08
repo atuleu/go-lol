@@ -8,12 +8,22 @@ import (
 	"os/exec"
 	"path"
 	"sort"
+	"time"
+
+	lol ".."
 )
 
 type darwinLauncher struct {
 	launcherPath string
 	clientPath   string
 }
+
+const (
+	launcherReleasesBasepath = "Contents/LoL/RADS/solutions/lol_game_client_sln/releases"
+	launcherPath             = "deploy/LeagueOfLegends.app/Contents/MacOS/LeagueofLegends"
+	clientReleasesBasepath   = "Contents/LoL/RADS/projects/lol_air_client/releases"
+	clientPath               = "deploy/bin/LolClient"
+)
 
 func (l *darwinLauncher) lookForExecutableReleases(basepath, binPath string) (string, error) {
 	filesInfo, err := ioutil.ReadDir(basepath)
@@ -83,11 +93,25 @@ func (l *darwinLauncher) Launch(address string, region *lol.Region, id lol.GameI
 	cmd := exec.Command(l.launcherPath, MaestroParam1, MaestroParam2, l.clientPath,
 		fmt.Sprintf(`spectator %s %s %d %s`, address, encryptionKey, id, region.PlatformID()))
 
+	cmd.Dir = path.Dir(l.launcherPath)
 	cmd.Env = append(os.Environ(), "riot_launched=true")
 
-	log.Printf("Connecting client output to terminal")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	now := time.Now()
+	debugErr, err := ioutil.TempFile("", fmt.Sprintf("go-lol-client-debug-stderr-%d.txt", now.Unix()))
+	if err != nil {
+		return err
+	}
+	defer debugErr.Close()
+
+	debugOut, err := ioutil.TempFile("", fmt.Sprintf("go-lol-client-debug-stdout-%d.txt", now.Unix()))
+	if err != nil {
+		return err
+	}
+	defer debugOut.Close()
+
+	log.Printf("Connecting client output to %s and %s", debugErr.Name(), debugOut.Name())
+	cmd.Stdout = debugOut
+	cmd.Stderr = debugErr
 
 	return cmd.Run()
 }

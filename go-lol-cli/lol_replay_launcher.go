@@ -81,10 +81,6 @@ func (l versionList) Swap(i, j int) {
 }
 
 const (
-	launcherReleasesBasepath = "Contents/LoL/RADS/solutions/lol_game_client_sln/releases"
-	launcherPath             = "deploy/LeagueOfLegends.app/Contents/MacOD/LeagueofLegends"
-	MaestroParam1            = "8394"
-	MaestroParam2            = "LoLLauncher"
-	clientReleasesBasepath   = "Contents/LoL/RADS/projects/lol_air_client/releases"
-	clientPath               = "deploy/bin/LolClient"
+	MaestroParam1 = "8394"
+	MaestroParam2 = "LoLLauncher"
 )

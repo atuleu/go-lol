@@ -71,7 +71,7 @@ You may want to launch manually the LoL client as described at https://developer
 		go func() {
 			errLauncher := launcher.Launch(x.Address, i.region, gid, server.EncryptionKey())
 			if errLauncher != nil {
-				log.Printf("Client error: %s", err)
+				log.Printf("Client error: %s", errLauncher)
 			}
 			close(finish)
 		}()
