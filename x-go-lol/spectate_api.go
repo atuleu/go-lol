@@ -223,6 +223,10 @@ func (a *SpectateAPI) SpectateGame(encryptionKey string, w ReplayDataWriter) (*R
 			return nil, err
 		}
 
+		// at least wait 1s between loops
+		if cInfo.NextAvailableChunk < 1000 {
+			cInfo.NextAvailableChunk = 1000
+		}
 		nextAvailableChunkDate := time.Now().Add(cInfo.NextAvailableChunk.Duration() + cInfo.Duration.Duration()/10)
 
 		replay.MergeFromMetaData(metadata)
@@ -240,8 +244,6 @@ func (a *SpectateAPI) SpectateGame(encryptionKey string, w ReplayDataWriter) (*R
 			if err != nil {
 				return nil, err
 			}
-		} else {
-			log.Printf("%v %v", replay.Chunks, replay.KeyFrames)
 		}
 
 		// thoses parts are nasty and growas by itself. Basically i
