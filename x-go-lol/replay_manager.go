@@ -15,7 +15,7 @@ import (
 // A ReplayManager stores and retrieve replays
 type ReplayManager interface {
 	Store(*Replay) error
-	Get(*lol.Region, lol.GameID) (ReplayDataLoader, error)
+	Get(*lol.Region, lol.GameID) (ReplayDataFormatter, error)
 	Replays() map[string]*Replay
 }
 
@@ -98,22 +98,12 @@ func (m *XdgReplayManager) Store(r *Replay) error {
 // Get returns a ReplayDataLoader for a given lol.Region and
 // lol.GameID. It will return an error if the replay data is missing
 // or incomplete for LoL client to spectate.
-func (m *XdgReplayManager) Get(region *lol.Region, id lol.GameID) (ReplayDataLoader, error) {
+func (m *XdgReplayManager) Get(region *lol.Region, id lol.GameID) (ReplayDataFormatter, error) {
 	basepath := path.Join(m.basedir, region.PlatformID(), fmt.Sprintf("%s", id))
-
-	_, err := os.Stat(basepath)
-	if err != nil {
-		return nil, err
-	}
 
 	formatter, err := NewExpandedReplayFormatter(basepath)
 	if err != nil {
 		return nil, err
-	}
-
-	if formatter.HasEndOfGameStats() == false {
-		return nil, fmt.Errorf("Requested game %s/%d is not finished, missing EndOfGameStats",
-			region.PlatformID(), id)
 	}
 
 	return formatter, nil

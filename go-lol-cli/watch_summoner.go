@@ -59,8 +59,14 @@ func (x *WatchSummonerCommand) Execute(args []string) error {
 			if err != nil {
 				return err
 			}
+
+			/*			ft, err := i.manager.Get(i.region, currentGame.ID)
+						if err != nil {
+							return err
+						}*/
+
 			//spectate the game
-			replay, err := api.SpectateGame(currentGame.Observer.EncryptionKey)
+			replay, err := api.SpectateGame(currentGame.Observer.EncryptionKey, nil)
 			if err != nil {
 				return err
 			}

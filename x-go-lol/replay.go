@@ -17,6 +17,10 @@ type Chunk struct {
 	data     []byte
 }
 
+func (c Chunk) isAssociated() bool {
+	return c.KeyFrame > 0
+}
+
 // A ChunkList is slice of Chunk that implements sort.Interface
 type ChunkList []Chunk
 
@@ -81,6 +85,12 @@ type ReplayDataWriter interface {
 	CreateEndOfGameStats() (io.WriteCloser, error)
 }
 
+//A ReplayDataFormatter is both a ReplayDataWriter and ReplayDataLoader
+type ReplayDataFormatter interface {
+	ReplayDataLoader
+	ReplayDataWriter
+}
+
 // A Replay is a in memory structure that represent all data that is
 // needed to spectate a LoL game.
 type Replay struct {
@@ -114,7 +124,9 @@ func NewEmptyReplay() *Replay {
 }
 
 func (r *Replay) addChunk(c Chunk) {
-
+	if c.ID == 0 {
+		return
+	}
 	if _, ok := r.chunksByID[c.ID]; ok == true {
 		return
 	}
@@ -125,6 +137,9 @@ func (r *Replay) addChunk(c Chunk) {
 }
 
 func (r *Replay) addKeyFrame(kf KeyFrame) {
+	if kf.ID == 0 {
+		return
+	}
 	if _, ok := r.keyframeByID[kf.ID]; ok == true {
 		return
 	}
@@ -252,7 +267,7 @@ func (r *Replay) MergeFromLastChunkInfo(ci LastChunkInfo) {
 			r.Chunks[cIdx].Duration = ci.Duration
 		}
 
-		if r.Chunks[cIdx].KeyFrame <= 0 {
+		if r.Chunks[cIdx].isAssociated() == false {
 			r.Chunks[cIdx].KeyFrame = ci.AssociatedKeyFrameID
 		}
 
@@ -297,7 +312,7 @@ func (r *Replay) Consolidate() {
 	}
 
 	for cIdx, c := range r.Chunks {
-		if c.KeyFrame != 0 {
+		if c.isAssociated() == true {
 			continue
 		}
 
@@ -330,7 +345,7 @@ func (r *Replay) check(loader ReplayDataLoader) error {
 	// keyFrame, and the keyframe is available
 	noKeyFrameIsFailure := false
 	for _, c := range r.Chunks {
-		if c.KeyFrame > 0 {
+		if c.isAssociated() {
 			noKeyFrameIsFailure = true
 		} else {
 			if noKeyFrameIsFailure == true {
@@ -347,7 +362,7 @@ func (r *Replay) check(loader ReplayDataLoader) error {
 			}
 		}
 
-		if c.KeyFrame <= 0 {
+		if c.isAssociated() == false {
 			continue
 		}
 
@@ -356,7 +371,12 @@ func (r *Replay) check(loader ReplayDataLoader) error {
 			return fmt.Errorf("Missing metadata for Keyframe %d (associated with chunk %d)", c.KeyFrame, c.ID)
 		}
 
-		if len(r.KeyFrames[kfIdx].data) == 0 {
+		kf := r.KeyFrames[kfIdx]
+		if kf.NextChunkID <= 0 {
+			return fmt.Errorf("KeyFrame %d does not know its next chunk id", kfIdx)
+		}
+
+		if len(kf.data) == 0 {
 			if loader == nil {
 				return fmt.Errorf("Data for KeyFrame %d is not loaded, and no loader defined", c.KeyFrame)
 			}
@@ -394,12 +414,16 @@ func (r *Replay) LoadData(loader ReplayDataLoader) error {
 		defer reader.Close()
 		r.Chunks[i].data, err = ioutil.ReadAll(reader)
 		if err != nil {
-			return fmt.Errorf("COuld not read Chunk %d data:  %s", c.ID, err)
+			return fmt.Errorf("Could not read Chunk %d data:  %s", c.ID, err)
+		}
+
+		if c.isAssociated() == false {
+			continue
 		}
 
 		kfIdx, ok := r.keyframeByID[c.KeyFrame]
 		if ok == false {
-			return fmt.Errorf("Internal consistency error, Replay.check should hae reported an error")
+			return fmt.Errorf("Internal consistency error, Replay.check should have reported an error")
 		}
 
 		rr, err := loader.OpenKeyFrame(c.KeyFrame)
@@ -441,6 +465,11 @@ func (r *Replay) SaveData(writer ReplayDataWriter) error {
 		if err != nil {
 			return fmt.Errorf("Could not write Chunk %d data: %s", c.ID, err)
 		}
+
+		if c.isAssociated() == false {
+			continue
+		}
+
 		kfIdx, ok := r.keyframeByID[c.KeyFrame]
 		if ok == false {
 			return fmt.Errorf("Internal consistency error, Replay.check should hae reported an error")

@@ -189,7 +189,7 @@ func (a *SpectateAPI) readBinary(fn SpectateFunction, id int, onSuccess func(), 
 // SpectateGame is spectating a Game from the SpectateAPI endpoint. It
 // is fetching all data needed to spectate the Replay again and checks
 // for its integrity.
-func (a *SpectateAPI) SpectateGame(encryptionKey string) (*Replay, error) {
+func (a *SpectateAPI) SpectateGame(encryptionKey string, w ReplayDataWriter) (*Replay, error) {
 
 	replay := NewEmptyReplay()
 	replay.EncryptionKey = encryptionKey
@@ -229,6 +229,21 @@ func (a *SpectateAPI) SpectateGame(encryptionKey string) (*Replay, error) {
 		replay.MergeFromLastChunkInfo(cInfo)
 		replay.Consolidate()
 
+		if w != nil {
+			f, err := w.Create()
+			if err != nil {
+				return nil, err
+			}
+			defer f.Close()
+			enc := json.NewEncoder(f)
+			err = enc.Encode(replay)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			log.Printf("%v %v", replay.Chunks, replay.KeyFrames)
+		}
+
 		// thoses parts are nasty and growas by itself. Basically i
 		// did not had the knowledge of how the client fetches data.
 		// Therefore it would be nicer, fo a replay to work
@@ -252,6 +267,17 @@ func (a *SpectateAPI) SpectateGame(encryptionKey string) (*Replay, error) {
 					},
 				}
 				replay.addChunk(c)
+				if w != nil {
+					f, err := w.CreateChunk(nextChunkToDownload)
+					if err != nil {
+						return nil, err
+					}
+					defer f.Close()
+					_, err = io.Copy(f, bytes.NewBuffer(chunks[nextChunkToDownload]))
+					if err != nil {
+						return nil, err
+					}
+				}
 			}
 		}
 
@@ -274,6 +300,17 @@ func (a *SpectateAPI) SpectateGame(encryptionKey string) (*Replay, error) {
 					},
 				}
 				replay.addKeyFrame(kf)
+				if w != nil {
+					f, err := w.CreateKeyFrame(nextKeyframeToDownload)
+					if err != nil {
+						return nil, err
+					}
+					defer f.Close()
+					_, err = io.Copy(f, bytes.NewBuffer(keyFrames[nextKeyframeToDownload]))
+					if err != nil {
+						return nil, err
+					}
+				}
 			}
 		}
 
