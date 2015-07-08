@@ -26,9 +26,7 @@ func (x *ReplayCommand) Execute(args []string) error {
 	}
 
 	if x.GameID == 0 {
-		log.Printf("Loading all replays")
 		replays := i.manager.Replays()
-		log.Printf("done")
 		if len(replays[i.region.Code()]) == 0 {
 			return fmt.Errorf("No replay available for platform %s", i.region.Code())
 		}
@@ -48,6 +46,13 @@ func (x *ReplayCommand) Execute(args []string) error {
 		return err
 	}
 
+	launcher, err := NewLolReplayLauncher("")
+	if err != nil {
+		log.Printf(`Could not find launcher replay: %s
+You may want to launch manually the LoL client as described at https://developer.riotgames.com/docs/spectating-games, with arguments "spectator %s %s %d %s"`,
+			err, x.Address, server.EncryptionKey(), gid, i.region.PlatformID())
+	}
+
 	sigchan := make(chan os.Signal)
 	errchan := make(chan error)
 
@@ -60,10 +65,27 @@ func (x *ReplayCommand) Execute(args []string) error {
 		errchan <- err
 	}()
 
-	//TODO : starts the launcher
+	finish := make(chan struct{})
 
-	<-sigchan
-	log.Printf("Stopping the server after catching SIGINT")
+	if launcher != nil {
+		go func() {
+			errLauncher := launcher.Launch(x.Address, i.region, gid, server.EncryptionKey())
+			if errLauncher != nil {
+				log.Printf("Client error: %s", err)
+			}
+			close(finish)
+		}()
+	} else {
+		log.Printf("Will stream until SIGINT")
+	}
+
+	select {
+	case <-sigchan:
+		log.Printf("Stopping the server after catching SIGINT")
+	case <-finish:
+		log.Printf("Stopping the server after client exit")
+	}
+
 	err = server.Close()
 	if err != nil {
 		return err
