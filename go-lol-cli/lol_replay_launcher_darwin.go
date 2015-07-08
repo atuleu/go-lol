@@ -10,7 +10,7 @@ import (
 	"sort"
 	"time"
 
-	lol ".."
+	"github.com/atuleu/go-lol"
 )
 
 type darwinLauncher struct {

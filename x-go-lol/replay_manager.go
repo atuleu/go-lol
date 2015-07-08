@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"sort"
 
-	lol ".."
+	"github.com/atuleu/go-lol"
 	"launchpad.net/go-xdg"
 )
 

@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	lol ".."
-	xlol "../x-go-lol"
+	"github.com/atuleu/go-lol"
+	"github.com/atuleu/go-lol/x-go-lol"
 )
 
 type WatchSummonerCommand struct {

@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	lol ".."
-	xlol "../x-go-lol"
+	"github.com/atuleu/go-lol"
+	"github.com/atuleu/go-lol/x-go-lol"
 )
 
 type Interactor struct {

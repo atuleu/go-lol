@@ -6,8 +6,8 @@ import (
 	"os"
 	"os/signal"
 
-	lol ".."
-	xlol "../x-go-lol"
+	"github.com/atuleu/go-lol"
+	"github.com/atuleu/go-lol/x-go-lol"
 )
 
 type ReplayCommand struct {

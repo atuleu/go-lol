@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/jessevdk/go-flags"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -11,7 +10,8 @@ import (
 	"strings"
 	"time"
 
-	lol ".."
+	"github.com/atuleu/go-lol"
+	"github.com/jessevdk/go-flags"
 )
 
 type APIName string

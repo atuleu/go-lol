@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	lol ".."
+	"github.com/atuleu/go-lol"
 )
 
 type LolReplayLauncher interface {
