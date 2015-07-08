@@ -170,7 +170,11 @@ func (r *Replay) MergeFromMetaData(gm GameMetadata) {
 	}
 
 	for _, ci := range gm.PendingAvailableChunkInfo {
-		if _, ok := r.chunksByID[ci.ID]; ok == true {
+		if cIdx, ok := r.chunksByID[ci.ID]; ok == true {
+			if r.Chunks[cIdx].Duration > 0 {
+				continue
+			}
+			r.Chunks[cIdx].ChunkInfo = ci
 			continue
 		}
 		newChunk := Chunk{
@@ -181,7 +185,14 @@ func (r *Replay) MergeFromMetaData(gm GameMetadata) {
 	}
 
 	for _, kfi := range gm.PendingAvailableKeyFrameInfo {
-		if _, ok := r.keyframeByID[kfi.ID]; ok == true {
+		if kfIdx, ok := r.keyframeByID[kfi.ID]; ok == true {
+			if r.KeyFrames[kfIdx].NextChunkID > 0 {
+				continue
+			}
+			r.KeyFrames[kfIdx].KeyFrameInfo = kfi
+			if idx, ok := r.chunksByID[kfi.NextChunkID]; ok == true {
+				r.Chunks[idx].KeyFrame = kfi.ID
+			}
 			continue
 		}
 		newKF := KeyFrame{
@@ -221,7 +232,7 @@ func (r *Replay) appendSortedIfUnique(slice []ChunkID, id ChunkID) []ChunkID {
 // that could be fetch with a LastChunkInfo structure, obtained
 // through the SpectateAPI
 func (r *Replay) MergeFromLastChunkInfo(ci LastChunkInfo) {
-	if _, ok := r.chunksByID[ci.ID]; ok == false {
+	if cIdx, ok := r.chunksByID[ci.ID]; ok == false {
 		//we create a new Chunk
 		res := Chunk{
 			ChunkInfo: ChunkInfo{
@@ -236,11 +247,19 @@ func (r *Replay) MergeFromLastChunkInfo(ci LastChunkInfo) {
 		}
 
 		r.addChunk(res)
+	} else {
+		if r.Chunks[cIdx].Duration == 0 {
+			r.Chunks[cIdx].Duration = ci.Duration
+		}
+
+		if r.Chunks[cIdx].KeyFrame == 0 {
+			r.Chunks[cIdx].KeyFrame = ci.AssociatedKeyFrameID
+		}
+
 	}
 
 	kfIdx, ok := r.keyframeByID[ci.AssociatedKeyFrameID]
 	if ok == false {
-
 		res := KeyFrame{
 			KeyFrameInfo: KeyFrameInfo{
 				ID:          ci.AssociatedKeyFrameID,
@@ -249,12 +268,22 @@ func (r *Replay) MergeFromLastChunkInfo(ci LastChunkInfo) {
 			Chunks: []ChunkID{ci.ID},
 		}
 
+		res.Chunks = r.appendSortedIfUnique(res.Chunks, ci.NextChunkID)
+
 		if cIdx, ok := r.chunksByID[ci.NextChunkID]; ok == true {
 			res.ReceivedTime = r.Chunks[cIdx].ReceivedTime
 		}
 
 		r.addKeyFrame(res)
 		kfIdx = r.keyframeByID[ci.AssociatedKeyFrameID]
+	} else {
+		if len(r.KeyFrames[kfIdx].Chunks) == 0 {
+			r.KeyFrames[kfIdx].Chunks = r.appendSortedIfUnique(r.KeyFrames[kfIdx].Chunks, ci.NextChunkID)
+			r.KeyFrames[kfIdx].Chunks = r.appendSortedIfUnique(r.KeyFrames[kfIdx].Chunks, ci.ID)
+		}
+		if r.KeyFrames[kfIdx].NextChunkID == 0 {
+			r.KeyFrames[kfIdx].NextChunkID = ci.NextChunkID
+		}
 	}
 
 	r.KeyFrames[kfIdx].Chunks = r.appendSortedIfUnique(r.KeyFrames[kfIdx].Chunks, ci.ID)

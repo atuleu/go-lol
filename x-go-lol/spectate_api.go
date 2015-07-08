@@ -241,6 +241,15 @@ func (a *SpectateAPI) SpectateGame(encryptionKey string) (*Replay, error) {
 			if err != nil {
 				return nil, err
 			}
+			//makes sure data is downlaoded for all successful chunk download
+			if len(chunks[nextChunkToDownload]) > 0 {
+				c := Chunk{
+					ChunkInfo: ChunkInfo{
+						ID: nextChunkToDownload,
+					},
+				}
+				replay.addChunk(c)
+			}
 		}
 
 		for ; nextKeyframeToDownload <= cInfo.AssociatedKeyFrameID; nextKeyframeToDownload++ {
@@ -254,6 +263,14 @@ func (a *SpectateAPI) SpectateGame(encryptionKey string) (*Replay, error) {
 				})
 			if err != nil {
 				return nil, err
+			}
+			if len(keyFrames[nextKeyframeToDownload]) > 0 {
+				kf := KeyFrame{
+					KeyFrameInfo: KeyFrameInfo{
+						ID: nextKeyframeToDownload,
+					},
+				}
+				replay.addKeyFrame(kf)
 			}
 		}
 
