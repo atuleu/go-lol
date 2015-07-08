@@ -24,7 +24,7 @@ type ReplayServer struct {
 	chunkInfoRequester chan lastChunkInfoGenerator
 	finish             chan struct{}
 	listener           net.Listener
-	timeDivisor        DurationMs
+	TimeDivisor        DurationMs
 }
 
 // NewReplayServer initializes a ReplayServer from data located somewhere
@@ -52,7 +52,7 @@ func NewReplayServer(loader ReplayDataLoader) (*ReplayServer, error) {
 		break
 	}
 
-	res.timeDivisor = 10
+	res.TimeDivisor = 4
 	return res, nil
 }
 
@@ -136,10 +136,10 @@ func (h *ReplayServer) generateLastChunkInfo(currentChunk ChunkID, emitDate time
 		Duration:             c.Duration,
 	}
 
-	nextDate := emitDate.Add((res.Duration / h.timeDivisor).Duration())
+	nextDate := emitDate.Add((res.Duration / h.TimeDivisor).Duration())
 	return nextDate, func() LastChunkInfo {
 		now := time.Now()
-		res.AvailableSince = DurationMs(now.Sub(emitDate))
+		res.AvailableSince = toDurationMs(now.Sub(emitDate))
 		if now.Before(nextDate) {
 			res.NextAvailableChunk = toDurationMs(nextDate.Sub(now))
 		} else {
@@ -189,7 +189,8 @@ func handleGetLastChunkInfo(h *ReplayServer, parts []string, w http.ResponseWrit
 		return
 	}
 	w.Header()["Content-Type"] = []string{"application/json"}
-	data, err := json.Marshal(ciGen())
+	ci := ciGen()
+	data, err := json.Marshal(ci)
 	if err != nil {
 		panic(err)
 	}
@@ -324,7 +325,7 @@ func (h *ReplayServer) internLoop() {
 	startChunkInfo := LastChunkInfo{
 		ID:                   c.ID,
 		AvailableSince:       0,
-		NextAvailableChunk:   c.Duration / h.timeDivisor,
+		NextAvailableChunk:   c.Duration / h.TimeDivisor,
 		AssociatedKeyFrameID: kf.ID,
 		NextChunkID:          kf.NextChunkID,
 		EndStartupChunkID:    ChunkID(h.r.MetaData.EndStartupChunkID),

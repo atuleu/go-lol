@@ -11,8 +11,9 @@ import (
 )
 
 type ReplayCommand struct {
-	GameID  uint64 `long:"game-id" short:"g" description:"ID of the game to replay, if none the most recent on the region is replayed"`
-	Address string `long:"address" short:"a" description:"Address of the replay server" default:":8088"`
+	GameID     uint64 `long:"game-id" short:"g" description:"ID of the game to replay, if none the most recent on the region is replayed"`
+	Address    string `long:"address" short:"a" description:"Address of the replay server" default:"localhost:8088"`
+	TimeFactor uint   `long:"time-factor" short:"t" description:"Time multiplication factor when streaming game, a too high value may hinder the performance of the client" default:"4"`
 }
 
 func (x *ReplayCommand) Execute(args []string) error {
@@ -45,6 +46,7 @@ func (x *ReplayCommand) Execute(args []string) error {
 	if err != nil {
 		return err
 	}
+	server.TimeDivisor = xlol.DurationMs(x.TimeFactor)
 
 	launcher, err := NewLolReplayLauncher("")
 	if err != nil {
