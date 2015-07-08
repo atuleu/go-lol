@@ -247,6 +247,11 @@ func (r *Replay) appendSortedIfUnique(slice []ChunkID, id ChunkID) []ChunkID {
 // that could be fetch with a LastChunkInfo structure, obtained
 // through the SpectateAPI
 func (r *Replay) MergeFromLastChunkInfo(ci LastChunkInfo) {
+	//avoids ChunkId 0
+	if ci.ID == 0 {
+		return
+	}
+
 	if cIdx, ok := r.chunksByID[ci.ID]; ok == false {
 		//we create a new Chunk
 		res := Chunk{
@@ -302,6 +307,7 @@ func (r *Replay) MergeFromLastChunkInfo(ci LastChunkInfo) {
 	}
 
 	r.KeyFrames[kfIdx].Chunks = r.appendSortedIfUnique(r.KeyFrames[kfIdx].Chunks, ci.ID)
+
 }
 
 // Consolidate is reconstructing missing internal data (KeyFrame and
