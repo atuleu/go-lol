@@ -15,7 +15,8 @@ import (
 // A ReplayManager stores and retrieve replays
 type ReplayManager interface {
 	Store(*Replay) error
-	Get(*lol.Region, lol.GameID) (ReplayDataFormatter, error)
+	Get(*lol.Region, lol.GameID) (ReplayDataLoader, error)
+	Create(*lol.Region, lol.GameID) (ReplayDataWriter, error)
 	Replays() map[string]*Replay
 }
 
@@ -96,9 +97,35 @@ func (m *XdgReplayManager) Store(r *Replay) error {
 }
 
 // Get returns a ReplayDataLoader for a given lol.Region and
-// lol.GameID. It will return an error if the replay data is missing
-// or incomplete for LoL client to spectate.
-func (m *XdgReplayManager) Get(region *lol.Region, id lol.GameID) (ReplayDataFormatter, error) {
+// lol.GameID that is fully stored in the Manager. It will return an
+// error if the replay data is missing or incomplete for LoL client to
+// spectate.
+func (m *XdgReplayManager) Get(region *lol.Region, id lol.GameID) (ReplayDataLoader, error) {
+	basepath := path.Join(m.basedir, region.PlatformID(), fmt.Sprintf("%s", id))
+
+	_, err := os.Stat(basepath)
+	if err != nil {
+		return nil, err
+	}
+
+	formatter, err := NewExpandedReplayFormatter(basepath)
+	if err != nil {
+		return nil, err
+	}
+
+	if formatter.HasEndOfGameStats() == false {
+		return nil, fmt.Errorf("Requested game %s/%d is not finished, missing EndOfGameStats",
+			region.PlatformID(), id)
+	}
+
+	return formatter, nil
+
+}
+
+// Create returns a ReplayDataWriter for a replay identifieud by its
+// lol.Region and lol.GameID. It will fails if a replay already exists
+// for that Game.
+func (m *XdgReplayManager) Create(region *lol.Region, id lol.GameID) (ReplayDataWriter, error) {
 	basepath := path.Join(m.basedir, region.PlatformID(), fmt.Sprintf("%s", id))
 
 	formatter, err := NewExpandedReplayFormatter(basepath)
@@ -106,8 +133,16 @@ func (m *XdgReplayManager) Get(region *lol.Region, id lol.GameID) (ReplayDataFor
 		return nil, err
 	}
 
-	return formatter, nil
+	f, err := formatter.Open()
+	if err == nil {
+		f.Close()
+	}
+	if err == nil || os.IsNotExist(err) == false {
+		return nil, fmt.Errorf("Cannot create a replay for game %s/%d: some replay data already exists",
+			region.PlatformID(), id)
+	}
 
+	return formatter, nil
 }
 
 var gameIDRx = regexp.MustCompile(`\A[0-9]+\z`)

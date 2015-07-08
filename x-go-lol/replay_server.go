@@ -45,7 +45,7 @@ func NewReplayServer(loader ReplayDataLoader) (*ReplayServer, error) {
 		if int(c.ID) < res.r.MetaData.StartGameChunkID {
 			continue
 		}
-		if c.KeyFrame == 0 {
+		if c.isAssociated() == false {
 			continue
 		}
 		res.startStreamChunk = c.ID
