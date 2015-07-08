@@ -252,7 +252,7 @@ func (r *Replay) MergeFromLastChunkInfo(ci LastChunkInfo) {
 			r.Chunks[cIdx].Duration = ci.Duration
 		}
 
-		if r.Chunks[cIdx].KeyFrame == 0 {
+		if r.Chunks[cIdx].KeyFrame <= 0 {
 			r.Chunks[cIdx].KeyFrame = ci.AssociatedKeyFrameID
 		}
 
@@ -345,6 +345,10 @@ func (r *Replay) check(loader ReplayDataLoader) error {
 			if loader.HasChunk(c.ID) == false {
 				return fmt.Errorf("Missing data for Chunk %d", c.ID)
 			}
+		}
+
+		if c.KeyFrame <= 0 {
+			continue
 		}
 
 		kfIdx, ok := r.keyframeByID[c.KeyFrame]

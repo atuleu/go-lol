@@ -229,6 +229,9 @@ func (a *SpectateAPI) SpectateGame(encryptionKey string) (*Replay, error) {
 		replay.MergeFromLastChunkInfo(cInfo)
 		replay.Consolidate()
 
+		// thoses parts are nasty and growas by itself. Basically i
+		// did not had the knowledge of how the client fetches data.
+		// Therefore it would be nicer, fo a replay to work
 		for ; nextChunkToDownload <= cInfo.ID; nextChunkToDownload++ {
 			chunks[nextChunkToDownload], err = a.readBinary(GetGameDataChunk,
 				int(nextChunkToDownload),
