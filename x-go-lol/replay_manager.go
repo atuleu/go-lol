@@ -18,6 +18,7 @@ type ReplayManager interface {
 	Get(*lol.Region, lol.GameID) (ReplayDataLoader, error)
 	Create(*lol.Region, lol.GameID) (ReplayDataWriter, error)
 	Replays() map[string]*Replay
+	Delete(*lol.Region, lol.GameID) error
 }
 
 // A XdgReplayManager is a ReplayManager that stores its data within
@@ -83,6 +84,10 @@ func (m *XdgReplayManager) checkCompatible(version string) error {
 	return nil
 }
 
+func (m *XdgReplayManager) replayBasePath(region *lol.Region, id lol.GameID) string {
+	return path.Join(m.basedir, region.PlatformID(), fmt.Sprintf("%s", id))
+}
+
 // Store saves in the cache directory all the Replay data.
 func (m *XdgReplayManager) Store(r *Replay) error {
 	path := path.Join(m.basedir, r.MetaData.GameKey.PlatformID,
@@ -101,7 +106,7 @@ func (m *XdgReplayManager) Store(r *Replay) error {
 // error if the replay data is missing or incomplete for LoL client to
 // spectate.
 func (m *XdgReplayManager) Get(region *lol.Region, id lol.GameID) (ReplayDataLoader, error) {
-	basepath := path.Join(m.basedir, region.PlatformID(), fmt.Sprintf("%s", id))
+	basepath := m.replayBasePath(region, id)
 
 	_, err := os.Stat(basepath)
 	if err != nil {
@@ -126,7 +131,7 @@ func (m *XdgReplayManager) Get(region *lol.Region, id lol.GameID) (ReplayDataLoa
 // lol.Region and lol.GameID. It will fails if a replay already exists
 // for that Game.
 func (m *XdgReplayManager) Create(region *lol.Region, id lol.GameID) (ReplayDataWriter, error) {
-	basepath := path.Join(m.basedir, region.PlatformID(), fmt.Sprintf("%s", id))
+	basepath := m.replayBasePath(region, id)
 
 	formatter, err := NewExpandedReplayFormatter(basepath)
 	if err != nil {
@@ -216,4 +221,11 @@ func (m *XdgReplayManager) Replays() map[string][]*Replay {
 	}
 
 	return res
+}
+
+// Delete ensure that the replay is deleted from the manager. It only
+// returns an error if it cannot delete it. If the replay does not
+// exist it will silently ignores the error.
+func (m *XdgReplayManager) Delete(region *lol.Region, id lol.GameID) error {
+	return os.RemoveAll(m.replayBasePath(region, id))
 }
