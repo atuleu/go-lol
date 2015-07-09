@@ -39,7 +39,10 @@ func NewInteractor(options *Options) (*Interactor, error) {
 		return nil, err
 	}
 
-	res.api = lol.NewAPIEndpoint(res.region, res.key)
+	res.api, err = lol.NewAPIEndpoint(res.region, res.key)
+	if err != nil {
+		return nil, err
+	}
 
 	res.manager, err = xlol.NewXdgReplayManager()
 
