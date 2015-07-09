@@ -171,19 +171,19 @@ func (a *SpectateAPI) Version() (string, error) {
 	return string(d), err
 }
 
-func (a *SpectateAPI) readBinary(fn SpectateFunction, id int, onSuccess func(), onUnreachable func()) ([]byte, error) {
+func (a *SpectateAPI) readBinary(fn SpectateFunction, id int, onSuccess func([]byte) error, onUnreachable func()) error {
 	var res bytes.Buffer
 	if err := a.ReadAll(fn, id, &res); err != nil {
 		if rerr, ok := err.(lol.RESTError); ok == true {
-			if rerr.Code == 404 {
+			if rerr.Code == http.StatusNotFound {
 				onUnreachable()
-				return nil, nil
+				return nil
 			}
 		}
-		return nil, err
+		return err
 	}
-	onSuccess()
-	return res.Bytes(), nil
+
+	return onSuccess(res.Bytes())
 }
 
 // SpectateGame is spectating a Game from the SpectateAPI endpoint. It
@@ -192,6 +192,9 @@ func (a *SpectateAPI) readBinary(fn SpectateFunction, id int, onSuccess func(), 
 func (a *SpectateAPI) SpectateGame(encryptionKey string, w ReplayDataWriter) (*Replay, error) {
 
 	replay := NewEmptyReplay()
+
+	//saves the encryption key. We would need this information to
+	//watch the replay again.
 	replay.EncryptionKey = encryptionKey
 	//Get the version
 	var err error
@@ -203,11 +206,67 @@ func (a *SpectateAPI) SpectateGame(encryptionKey string, w ReplayDataWriter) (*R
 	// next should not use a loop, but some kind of Go channel stuff,
 	// but we will be waiting most of the time with a decent
 	// connection.
-	nextChunkToDownload := ChunkID(0)
-	nextKeyframeToDownload := KeyFrameID(0)
+	//
+	// We skip chunk 0 and KeyFrame 0, they do not Exists!
+	nextChunkToDownload := ChunkID(1)
+	nextKeyframeToDownload := KeyFrameID(1)
 
-	chunks := make(map[ChunkID][]byte)
-	keyFrames := make(map[KeyFrameID][]byte)
+	// Callback when a download of a chunk is successful
+	onSuccessChunkDownload := func(id ChunkID) func([]byte) error {
+		return func(data []byte) error {
+			log.Printf("Downloaded Chunk %d", id)
+			//ensure that the replay will contains the Chunk
+			c := Chunk{
+				ChunkInfo: ChunkInfo{
+					ID: id,
+				},
+			}
+			replay.addChunk(c)
+			cIdx, ok := replay.chunksByID[id]
+			if ok == false {
+				return fmt.Errorf("Internal error, Chunk %d should exists", id)
+			}
+			//saves the data in the replay
+			replay.Chunks[cIdx].data = data
+			if w != nil {
+				return replay.saveChunk(w, replay.Chunks[cIdx])
+			}
+			return nil
+		}
+	}
+	onUnreachableChunk := func(id ChunkID) func() {
+		return func() {
+			log.Printf("Skips download of Chunk %d, server returned 404", id)
+		}
+	}
+	// Callback when a download of a keyframe is successful
+	onSuccessKeyFrameDownload := func(id KeyFrameID) func([]byte) error {
+		return func(data []byte) error {
+			log.Printf("Downloaded KeyFrame %d", id)
+			//ensure that the replay will contains the KeyFrame
+			kf := KeyFrame{
+				KeyFrameInfo: KeyFrameInfo{
+					ID: id,
+				},
+			}
+			replay.addKeyFrame(kf)
+			kfIdx, ok := replay.keyframeByID[id]
+			if ok == false {
+				return fmt.Errorf("Internal error, KeyFrame %d should exists", id)
+			}
+			//saves the data in the replay
+			replay.KeyFrames[kfIdx].data = data
+			if w != nil {
+				return replay.saveKeyFrame(w, replay.KeyFrames[kfIdx])
+			}
+			return nil
+		}
+	}
+	onUnreachableKeyFrame := func(id KeyFrameID) func() {
+		return func() {
+			log.Printf("Skips download of KeyFrame %d, server returned HTTP 404", id)
+		}
+	}
 
 	for {
 		// 1. get all current metadata, and merge it in our replay structure
@@ -223,104 +282,61 @@ func (a *SpectateAPI) SpectateGame(encryptionKey string, w ReplayDataWriter) (*R
 			return nil, err
 		}
 
+		// special case, when player are in the loading screen, the
+		// Spectate API sends invalid chunk ID, so we wait 1 min to
+		// poll it again, (anyway the first valid chunkInfo will make
+		// us wait for the 3 min buffer for a game.
+		if cInfo.ID == 0 {
+			log.Printf("Received spurious LastChunkInfo %+v. waiting 1m", cInfo)
+			cInfo.NextAvailableChunk = 60000 //ms
+		}
+
 		// at least wait 1s between loops
 		if cInfo.NextAvailableChunk < 1000 {
-			cInfo.NextAvailableChunk = 1000
+			cInfo.NextAvailableChunk = 1000 //ms
 		}
+
 		nextAvailableChunkDate := time.Now().Add(cInfo.NextAvailableChunk.Duration() + cInfo.Duration.Duration()/10)
 
+		//actually mergin the data
 		replay.MergeFromMetaData(metadata)
 		replay.MergeFromLastChunkInfo(cInfo)
 		replay.Consolidate()
 
+		//we save the replay we have so far
 		if w != nil {
-			f, err := w.Create()
-			if err != nil {
-				return nil, err
-			}
-			defer f.Close()
-			enc := json.NewEncoder(f)
-			err = enc.Encode(replay)
-			if err != nil {
-				return nil, err
-			}
+			//we save the replay
+			replay.unsafeSave(w)
 		}
 
-		// thoses parts are nasty and growas by itself. Basically i
-		// did not had the knowledge of how the client fetches data.
-		// Therefore it would be nicer, fo a replay to work
+		// We eagerly fetch all possible chunks and keyframe. Apparently chunks could be
+		// missing. I do not know if they reappears after
+		// sometime. Maybe ask kindly Riot ?
 		for ; nextChunkToDownload <= cInfo.ID; nextChunkToDownload++ {
-			chunks[nextChunkToDownload], err = a.readBinary(GetGameDataChunk,
+			if err := a.readBinary(GetGameDataChunk,
 				int(nextChunkToDownload),
-				func() {
-					log.Printf("Downloaded Chunk %d", nextChunkToDownload)
-				},
-				func() {
-					log.Printf("Skipped Chunk %d", nextChunkToDownload)
-				})
-			if err != nil {
+				onSuccessChunkDownload(nextChunkToDownload),
+				onUnreachableChunk(nextChunkToDownload)); err != nil {
 				return nil, err
-			}
-			//makes sure data is downlaoded for all successful chunk download
-			if len(chunks[nextChunkToDownload]) > 0 {
-				c := Chunk{
-					ChunkInfo: ChunkInfo{
-						ID: nextChunkToDownload,
-					},
-				}
-				replay.addChunk(c)
-				if w != nil {
-					f, err := w.CreateChunk(nextChunkToDownload)
-					if err != nil {
-						return nil, err
-					}
-					defer f.Close()
-					_, err = io.Copy(f, bytes.NewBuffer(chunks[nextChunkToDownload]))
-					if err != nil {
-						return nil, err
-					}
-				}
 			}
 		}
 
 		for ; nextKeyframeToDownload <= cInfo.AssociatedKeyFrameID; nextKeyframeToDownload++ {
-			keyFrames[nextKeyframeToDownload], err = a.readBinary(GetKeyFrame,
+			if err := a.readBinary(GetKeyFrame,
 				int(nextKeyframeToDownload),
-				func() {
-					log.Printf("Downloaded KeyFrame %d", nextKeyframeToDownload)
-				},
-				func() {
-					log.Printf("Skipped KeyFrame %d", nextKeyframeToDownload)
-				})
-			if err != nil {
+				onSuccessKeyFrameDownload(nextKeyframeToDownload),
+				onUnreachableKeyFrame(nextKeyframeToDownload)); err != nil {
 				return nil, err
-			}
-			if len(keyFrames[nextKeyframeToDownload]) > 0 {
-				kf := KeyFrame{
-					KeyFrameInfo: KeyFrameInfo{
-						ID: nextKeyframeToDownload,
-					},
-				}
-				replay.addKeyFrame(kf)
-				if w != nil {
-					f, err := w.CreateKeyFrame(nextKeyframeToDownload)
-					if err != nil {
-						return nil, err
-					}
-					defer f.Close()
-					_, err = io.Copy(f, bytes.NewBuffer(keyFrames[nextKeyframeToDownload]))
-					if err != nil {
-						return nil, err
-					}
-				}
 			}
 		}
 
+		//checks for end of game
 		if cInfo.EndGameChunkID > 0 && nextChunkToDownload > cInfo.EndGameChunkID {
 			log.Printf("End of game detected and reached at %d", cInfo.EndGameChunkID)
 			break
 		}
 
+		// wait until the next chunk info is available
 		cTime := time.Now()
 		if cTime.After(nextAvailableChunkDate) == true {
 			continue
@@ -329,6 +345,7 @@ func (a *SpectateAPI) SpectateGame(encryptionKey string, w ReplayDataWriter) (*R
 		time.Sleep(nextAvailableChunkDate.Sub(cTime))
 	}
 
+	// fetching end of game stats
 	var eog bytes.Buffer
 	err = a.ReadAll(EndOfGameStats, NullParam, &eog)
 	if err != nil {
@@ -336,28 +353,12 @@ func (a *SpectateAPI) SpectateGame(encryptionKey string, w ReplayDataWriter) (*R
 	}
 	replay.endOfGameStats = eog.Bytes()
 
-	// we put all the data where it is needed
-	for idx, c := range replay.Chunks {
-		data, ok := chunks[c.ID]
-		if ok == false {
-			continue
-		}
-		replay.Chunks[idx].data = data
-	}
-
-	for idx, kf := range replay.KeyFrames {
-		data, ok := keyFrames[kf.ID]
-		if ok == false {
-			continue
-		}
-		replay.KeyFrames[idx].data = data
-	}
-
-	//we check data integrity
+	// we check data integrity
 	err = replay.check(nil)
 	if err != nil {
 		return nil, fmt.Errorf("New downloaded replay is inconsistent: %s", err)
 	}
 
+	// hourray !
 	return replay, nil
 }
