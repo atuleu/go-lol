@@ -3,6 +3,7 @@ package xlol
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"regexp"
@@ -169,32 +170,41 @@ func (l replayList) Swap(i, j int) {
 	l[i], l[j] = l[j], l[i]
 }
 
-func (m *XdgReplayManager) replaysOfRegion(platformID string) []*Replay {
+// replaysOfRegion parses a directory of a region, and returns valid
+// replay and invalid files.
+func (m *XdgReplayManager) replaysOfRegion(platformID string) ([]*Replay, []string) {
 	platformBasePath := path.Join(m.basedir, platformID)
 	finfos, err := ioutil.ReadDir(platformBasePath)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
+	invalid := make([]string, 0, len(finfos))
 	res := make([]*Replay, 0, len(finfos))
 	for _, inf := range finfos {
+		replayBasePath := path.Join(platformBasePath, inf.Name())
 		if gameIDRx.MatchString(inf.Name()) == false {
+			invalid = append(invalid, replayBasePath)
 			continue
 		}
 		if inf.IsDir() == false {
+			invalid = append(invalid, replayBasePath)
 			continue
 		}
-		replayBasePath := path.Join(platformBasePath, inf.Name())
+
 		formatter, err := NewExpandedReplayFormatter(replayBasePath)
 		if err != nil {
+			invalid = append(invalid, replayBasePath)
 			continue
 		}
 		if formatter.HasEndOfGameStats() == false {
+			invalid = append(invalid, replayBasePath)
 			continue
 		}
 
 		r, err := LoadReplay(formatter)
 		if err != nil {
+			invalid = append(invalid, replayBasePath)
 			continue
 		}
 		res = append(res, r)
@@ -202,7 +212,7 @@ func (m *XdgReplayManager) replaysOfRegion(platformID string) []*Replay {
 
 	sort.Sort(sort.Reverse(replayList(res)))
 
-	return res
+	return res, invalid
 }
 
 // Replays return all Replay stored in the XdgReplayManager
@@ -217,7 +227,7 @@ func (m *XdgReplayManager) Replays() map[string][]*Replay {
 			continue
 		}
 
-		res[r.Code()] = m.replaysOfRegion(r.PlatformID())
+		res[r.Code()], _ = m.replaysOfRegion(r.PlatformID())
 	}
 
 	return res
@@ -228,4 +238,32 @@ func (m *XdgReplayManager) Replays() map[string][]*Replay {
 // exist it will silently ignores the error.
 func (m *XdgReplayManager) Delete(region *lol.Region, id lol.GameID) error {
 	return os.RemoveAll(m.replayBasePath(region, id))
+}
+
+// CleanUp is locating for all invalid files / replay in the
+// XdgReplayManager and removes them.
+func (m *XdgReplayManager) CleanUp() error {
+	toDelete := []string{}
+	for _, r := range lol.AllDynamicRegion() {
+		pinfo, err := os.Stat(path.Join(m.basedir, r.PlatformID()))
+		if err != nil {
+			continue
+		}
+		if pinfo.IsDir() == false {
+			continue
+		}
+
+		_, invalid := m.replaysOfRegion(r.PlatformID())
+		toDelete = append(toDelete, invalid...)
+	}
+
+	log.Printf("Cleaning up invalid files")
+	for _, p := range toDelete {
+		log.Printf("Removing %s", p)
+		if err := os.RemoveAll(p); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

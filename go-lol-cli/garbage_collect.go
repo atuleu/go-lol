@@ -55,7 +55,7 @@ func (x *GarbageCollectCommand) Execute(args []string) error {
 		}
 	}
 
-	return nil
+	return i.manager.CleanUp()
 }
 
 func init() {
