@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/atuleu/go-lol"
@@ -9,7 +10,7 @@ import (
 
 type GarbageCollectCommand struct {
 	Limit     int    `long:"limit" short:"l" description:"Keep at most this number of replay, negative number disable the limit. ) erase all" default:"-1"`
-	OlderThan string `long:"older-than" short:"o" description:"Removes replays that are older than this date" default:"5w"`
+	OlderThan string `long:"older-than" short:"o" description:"Removes replays that are older than this date, default is 840h (i.e. 5 weeks)" default:"840h"`
 }
 
 func (x *GarbageCollectCommand) Execute(args []string) error {
@@ -33,11 +34,18 @@ func (x *GarbageCollectCommand) Execute(args []string) error {
 	for _, region := range lol.AllDynamicRegion() {
 		replays := allReplays[region.Code()]
 		for idx, r := range replays {
-			if x.Limit < 0 || idx < x.Limit {
-				continue
+			shouldDelete := false
+			if x.Limit >= 0 && idx >= x.Limit {
+				log.Printf("Deleting %s/%d: outside the limit of %d", i.region.Code(), r.MetaData.GameKey.ID, x.Limit)
+				shouldDelete = true
+			}
+			if r.MetaData.CreateTime.Before(thresholdDate) {
+				log.Printf("Deleting %s/%d: older than %s", i.region.Code(), r.MetaData.GameKey.ID, thresholdDate)
+				shouldDelete = true
 			}
 
-			if r.MetaData.CreateTime.After(thresholdDate) {
+			if shouldDelete == false {
+				log.Printf("Keeping %s/%d", i.region.Code(), r.MetaData.GameKey.ID)
 				continue
 			}
 
