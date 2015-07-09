@@ -50,8 +50,8 @@ const (
 // NewSpectateAPI creates a new API endpoint dedicated to get data for
 // the specified game (from lol.Region and lol.GameID)
 func NewSpectateAPI(region *lol.Region, id lol.GameID) (*SpectateAPI, error) {
-	if len(region.PlatformID()) == 0 || len(region.SpectatorURL()) == 0 {
-		return nil, fmt.Errorf("Invalid static region")
+	if region.IsDynamic() == false {
+		return nil, fmt.Errorf("SpectateAPI is only working with dynamic region")
 	}
 
 	return &SpectateAPI{

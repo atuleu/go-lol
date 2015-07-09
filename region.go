@@ -162,10 +162,18 @@ func (r *Region) SpectatorURL() string {
 	return r.spectatorURL
 }
 
+// IsDynamic returns true if the region is dynamic, i.e. you can play
+// and spectate game on.
+func (r *Region) IsDynamic() bool {
+	return len(r.platformID) != 0 && len(r.spectatorURL) != 0
+}
+
+// AllDynamicRegion returns the list of all Dynamic
+// Region. i.e. region where you can play and observe games.
 func AllDynamicRegion() []*Region {
 	res := make([]*Region, 0, len(regionByID))
 	for _, r := range regionByCode {
-		if len(r.platformID) == 0 || len(r.spectatorURL) == 0 {
+		if r.IsDynamic() == false {
 			continue
 		}
 		res = append(res, r)

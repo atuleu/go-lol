@@ -15,12 +15,15 @@ type APIEndpoint struct {
 
 // NewAPIEndpoint creates a new APIEndpoint from a Region and an
 // APIKey
-func NewAPIEndpoint(region *Region, key APIKey) *APIEndpoint {
+func NewAPIEndpoint(region *Region, key APIKey) (*APIEndpoint, error) {
+	if region.IsDynamic() == false {
+		return nil, fmt.Errorf("APIEndpoint only works with dynamic regions")
+	}
 	return &APIEndpoint{
 		g:      NewRateLimitedRESTGetter(10, 10*time.Second),
 		region: region,
 		key:    key,
-	}
+	}, nil
 }
 
 // formats an url for that endpoint

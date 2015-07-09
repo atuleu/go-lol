@@ -6,7 +6,7 @@ all:
 check:
 	go vet
 	go test -coverprofile=cover.out -covermode=count
-#	golint
+	golint
 
 
 generate-test-data:
