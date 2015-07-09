@@ -406,40 +406,60 @@ func (r *Replay) check(loader ReplayDataLoader) error {
 	return nil
 }
 
+func (r *Replay) loadChunk(loader ReplayDataLoader, id ChunkID) error {
+	cIdx, ok := r.chunksByID[id]
+	if ok == false {
+		return fmt.Errorf("Unknown Chunk ID %d", id)
+	}
+
+	reader, err := loader.OpenChunk(id)
+	if err != nil {
+		return fmt.Errorf("Could not open Chunk %d: %s", id, err)
+	}
+	defer reader.Close()
+	r.Chunks[cIdx].data, err = ioutil.ReadAll(reader)
+	if err != nil {
+		return fmt.Errorf("Could not read Chunk %d data:  %s", id, err)
+	}
+	return nil
+}
+
+func (r *Replay) loadKeyFrame(loader ReplayDataLoader, id KeyFrameID) error {
+	kfIdx, ok := r.keyframeByID[id]
+	if ok == false {
+		return fmt.Errorf("Unknown KeyFrame ID %d (Replay.check() should have reported it)", id)
+	}
+
+	reader, err := loader.OpenKeyFrame(id)
+	if err != nil {
+		return fmt.Errorf("Could not open KeyFrame %d: %s", id, err)
+	}
+	defer reader.Close()
+	r.KeyFrames[kfIdx].data, err = ioutil.ReadAll(reader)
+	if err != nil {
+		return fmt.Errorf("Could not read KeyFrame %d data:  %s", id, err)
+	}
+
+	return nil
+}
+
 // LoadData is loading in memory all binary data of Replay (KeyFrame,
 // Chunk and EndOfGameStats) through a ReplayDataLoader
 func (r *Replay) LoadData(loader ReplayDataLoader) error {
 	if err := r.check(loader); err != nil {
 		return err
 	}
-	for i, c := range r.Chunks {
-		reader, err := loader.OpenChunk(c.ID)
-		if err != nil {
-			return fmt.Errorf("Could not open Chunk %d: %s", c.ID, err)
-		}
-		defer reader.Close()
-		r.Chunks[i].data, err = ioutil.ReadAll(reader)
-		if err != nil {
-			return fmt.Errorf("Could not read Chunk %d data:  %s", c.ID, err)
+	for _, c := range r.Chunks {
+		if err := r.loadChunk(loader, c.ID); err != nil {
+			return err
 		}
 
 		if c.isAssociated() == false {
 			continue
 		}
 
-		kfIdx, ok := r.keyframeByID[c.KeyFrame]
-		if ok == false {
-			return fmt.Errorf("Internal consistency error, Replay.check should have reported an error")
-		}
-
-		rr, err := loader.OpenKeyFrame(c.KeyFrame)
-		if err != nil {
-			return fmt.Errorf("Could not open KeyFrame %d: %s", c.KeyFrame, err)
-		}
-		defer rr.Close()
-		r.KeyFrames[kfIdx].data, err = ioutil.ReadAll(rr)
-		if err != nil {
-			return fmt.Errorf("Could not read KeyFrame %d data:  %s", c.KeyFrame, err)
+		if err := r.loadKeyFrame(loader, c.KeyFrame); err != nil {
+			return err
 		}
 	}
 
@@ -455,6 +475,32 @@ func (r *Replay) LoadData(loader ReplayDataLoader) error {
 	return nil
 }
 
+func (r *Replay) saveChunk(writer ReplayDataWriter, c Chunk) error {
+	w, err := writer.CreateChunk(c.ID)
+	if err != nil {
+		return fmt.Errorf("Could not create Chunk %d: %s", c.ID, err)
+	}
+	defer w.Close()
+	_, err = io.Copy(w, bytes.NewBuffer(c.data))
+	if err != nil {
+		return fmt.Errorf("Could not write Chunk %d data: %s", c.ID, err)
+	}
+	return nil
+}
+
+func (r *Replay) saveKeyFrame(writer ReplayDataWriter, kf KeyFrame) error {
+	w, err := writer.CreateKeyFrame(kf.ID)
+	if err != nil {
+		return fmt.Errorf("Could not create KeyFrame %d: %s", kf.ID, err)
+	}
+	defer w.Close()
+	_, err = io.Copy(w, bytes.NewBuffer(kf.data))
+	if err != nil {
+		return fmt.Errorf("Could not write KeyFrame %d data: %s", kf.ID, err)
+	}
+	return nil
+}
+
 // SaveData is saving all binary data of a Replay through a ReplayDataWriter
 func (r *Replay) SaveData(writer ReplayDataWriter) error {
 	if err := r.check(nil); err != nil {
@@ -462,14 +508,8 @@ func (r *Replay) SaveData(writer ReplayDataWriter) error {
 	}
 
 	for _, c := range r.Chunks {
-		w, err := writer.CreateChunk(c.ID)
-		if err != nil {
-			return fmt.Errorf("Could not create Chunk %d: %s", c.ID, err)
-		}
-		defer w.Close()
-		_, err = io.Copy(w, bytes.NewBuffer(c.data))
-		if err != nil {
-			return fmt.Errorf("Could not write Chunk %d data: %s", c.ID, err)
+		if err := r.saveChunk(writer, c); err != nil {
+			return err
 		}
 
 		if c.isAssociated() == false {
@@ -481,17 +521,11 @@ func (r *Replay) SaveData(writer ReplayDataWriter) error {
 			return fmt.Errorf("Internal consistency error, Replay.check should hae reported an error")
 		}
 
-		ww, err := writer.CreateKeyFrame(c.KeyFrame)
-		if err != nil {
-			return fmt.Errorf("Could not create KeyFrame %d: %s", c.KeyFrame, err)
+		if err := r.saveKeyFrame(writer, r.KeyFrames[kfIdx]); err != nil {
+			return err
 		}
-		defer ww.Close()
-		_, err = io.Copy(ww, bytes.NewBuffer(r.KeyFrames[kfIdx].data))
-		if err != nil {
-			return fmt.Errorf("Could not write Chunk %d data: %s", c.KeyFrame, err)
-		}
-
 	}
+
 	w, err := writer.CreateEndOfGameStats()
 	if err != nil {
 		return fmt.Errorf("Could not create end of game stat data: %s", err)
@@ -561,11 +595,16 @@ func (r *Replay) Save(writer ReplayDataWriter) error {
 	if err := r.check(nil); err != nil {
 		return fmt.Errorf("Could not save replay: %s", err)
 	}
+	return r.unsafeSave(writer)
+}
 
+// Save, but allows incomplete data
+func (r *Replay) unsafeSave(writer ReplayDataWriter) error {
 	w, err := writer.Create()
 	if err != nil {
 		return err
 	}
+	defer w.Close()
 	enc := json.NewEncoder(w)
 	return enc.Encode(r)
 }
