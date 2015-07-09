@@ -51,14 +51,16 @@ To record in loop any current game of a player, simply use :
 go-lol-cli -r <region> watch-summoner <SummonerName>
 ```
 
-`-r` option can be used to select a region like `na`, `kr` or `euw`. Default is `euw` because EUW > NA.
+`-r` option can be used to select a region like `na`, `kr` or
+`euw`. Default is `euw` because EUW > NA.
 
 ### List recorded replay
 
 ```bash
 go-lol-cli [-r <region>] list-replays
 ````
-Will return all recorder replays
+
+Will display on stdout all recorded replays for the specified region
 
 ### Watch a replay
 
@@ -66,19 +68,18 @@ Will return all recorder replays
 go-lol-cli [-r <region] replay [GameID]
 ```
 
-if you do not pass something to this command, the newest replay will be recorded.
+If you do not pass something to this command, the newest replay will
+be recorded. Otherwise you need to specify the long GameID (10 digits
+at the moment) to the command
 
 ### Clean Up
 
-NOT IMPLEMENTED YET
-
 ```bash
-go-lol-cli [-r <region>] garbage-collect --older-than 1w --limit 10
+go-lol-cli [-r <region>] garbage-collect --older-than 168h --limit 10
 ```
 
 This will keep no more than 10 replays (older are deleted first), and
-all replays that are older than 1 week
-
+all replays that are older than 168 hours (aka 1 week).
 
 
 ## License
