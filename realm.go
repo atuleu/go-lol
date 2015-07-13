@@ -2,6 +2,7 @@ package lol
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"image"
 	"io"
@@ -54,15 +55,28 @@ type Realm struct {
 // the Realm data (images)
 func (a *StaticAPIEndpoint) GetRealm() (Realm, error) {
 	res := Realm{}
+	// we don't use a cachedGet, because we re-initializes the cache on a a new patch
 	URL := a.formatURL("/realm", nil)
-	err := a.get(URL, nil, res)
+	resp, err := http.Get(URL)
 	if err != nil {
 		return Realm{}, err
 	}
-	res.cachedir, err = xdg.Cache.Ensure(path.Join("go-lol", "realm-images", "version"))
-	if err != nil {
-		return Realm{}, err
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return Realm{}, fmt.Errorf("Could not fetch realm data: %s", resp.Status)
 	}
+	dec := json.NewDecoder(resp.Body)
+	err = dec.Decode(&res)
+	if err != nil {
+		return Realm{}, fmt.Errorf("Could not parse JSON Realm data: %s", err)
+	}
+
+	cacheVersion, err := xdg.Cache.Ensure(path.Join("go-lol", "realm-images", "version"))
+	if err != nil {
+		return Realm{}, fmt.Errorf("Could not initialize Realm Images cache directory:  %s", err)
+	}
+	res.cachedir = path.Dir(cacheVersion)
+
 	return res, nil
 }
 
@@ -78,7 +92,7 @@ func (r nullCloser) Close() error {
 	return nil
 }
 
-func (r *Realm) openImage(group, name string) (io.ReadCloser, error) {
+func (r Realm) openImage(group, name string) (io.ReadCloser, error) {
 	version, ok := r.DataSetsVersion[group]
 	if ok == false {
 		version = r.Version
