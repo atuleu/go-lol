@@ -81,7 +81,7 @@ func (a *StaticAPIEndpoint) GetRealm() (Realm, error) {
 }
 
 type nullCloser struct {
-	buffer bytes.Buffer
+	buffer *bytes.Buffer
 }
 
 func (r nullCloser) Read(p []byte) (int, error) {
@@ -130,9 +130,11 @@ func (r Realm) openImage(group, name string) (io.ReadCloser, error) {
 	}
 	defer f.Close()
 
-	res := nullCloser{}
+	res := nullCloser{
+		buffer: bytes.NewBuffer(nil),
+	}
 
-	_, err = io.Copy(&(res.buffer), io.TeeReader(resp.Body, f))
+	_, err = io.Copy(res.buffer, io.TeeReader(resp.Body, f))
 	if err != nil {
 		// we should remove the cache, as it is likely to be
 		// incomplete

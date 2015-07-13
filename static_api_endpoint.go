@@ -141,11 +141,12 @@ func (a *StaticAPIEndpoint) cachedGet(url string, options map[string]string, v i
 		defer resp.Body.Close()
 
 		var buffer bytes.Buffer
-
 		_, cleanupError = io.Copy(&buffer, io.TeeReader(resp.Body, f))
 		if cleanupError != nil {
 			return fmt.Errorf("Could not cache data from %s: %s", fullURL, err)
 		}
+
+		reader = &buffer
 	}
 
 	dec := json.NewDecoder(reader)
