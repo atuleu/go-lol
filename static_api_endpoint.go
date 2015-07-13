@@ -100,13 +100,18 @@ func (a *StaticAPIEndpoint) cachedGet(url string, options map[string]string, v i
 	filepath := a.formatCacheFile(url, options)
 	_, err := os.Stat(filepath)
 	var reader io.Reader
-	var cleanupError error
 	if err == nil {
-		f, err := os.Open(filepath)
+		var f *os.File
+		f, err = os.Open(filepath)
 		if err != nil {
 			return fmt.Errorf("Could not open cache file %s: %s", filepath, err)
 		}
-		defer f.Close()
+		defer func() {
+			f.Close()
+			if err != nil {
+				os.RemoveAll(filepath)
+			}
+		}()
 		reader = f
 	} else {
 		if os.IsNotExist(err) == false {
@@ -117,32 +122,34 @@ func (a *StaticAPIEndpoint) cachedGet(url string, options map[string]string, v i
 		if err != nil {
 			return fmt.Errorf("Could not create cache file %s: %s", filepath, err)
 		}
-		f, err := os.Create(filepath)
+		var f *os.File
+		f, err = os.Create(filepath)
 		if err != nil {
 			return fmt.Errorf("Could not create cache file %s: %s", filepath, err)
 		}
 		defer func() {
 			f.Close()
-			if cleanupError != nil {
+			if err != nil {
 				os.RemoveAll(filepath)
 			}
 		}()
 
 		fullURL := a.formatURL(url, options)
-		resp, cleanupError := http.Get(fullURL)
+		var resp *http.Response
+		resp, err = http.Get(fullURL)
 		if err != nil {
 			return fmt.Errorf("Could not reach %s: %s", fullURL, err)
 		}
 		if resp.StatusCode >= 400 {
 			resp.Body.Close()
-			cleanupError = RESTError{Code: resp.StatusCode}
-			return cleanupError
+			err = RESTError{Code: resp.StatusCode}
+			return err
 		}
 		defer resp.Body.Close()
 
 		var buffer bytes.Buffer
-		_, cleanupError = io.Copy(&buffer, io.TeeReader(resp.Body, f))
-		if cleanupError != nil {
+		_, err = io.Copy(&buffer, io.TeeReader(resp.Body, f))
+		if err != nil {
 			return fmt.Errorf("Could not cache data from %s: %s", fullURL, err)
 		}
 
@@ -150,6 +157,6 @@ func (a *StaticAPIEndpoint) cachedGet(url string, options map[string]string, v i
 	}
 
 	dec := json.NewDecoder(reader)
-	cleanupError = dec.Decode(v)
-	return cleanupError
+	err = dec.Decode(v)
+	return err
 }
