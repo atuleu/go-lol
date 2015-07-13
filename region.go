@@ -138,13 +138,6 @@ func NewRegionByCode(code string) (*Region, error) {
 	return r, nil
 }
 
-func init() {
-	regionByCode = make(map[string]*Region)
-	for _, r := range regionByID {
-		regionByCode[r.code] = r
-	}
-}
-
 // Code returns the code used to identifies a Region
 func (r *Region) Code() string {
 	return r.code
@@ -179,4 +172,11 @@ func AllDynamicRegion() []*Region {
 		res = append(res, r)
 	}
 	return res
+}
+
+func init() {
+	regionByCode = make(map[string]*Region)
+	for _, r := range regionByID {
+		regionByCode[r.code] = r
+	}
 }

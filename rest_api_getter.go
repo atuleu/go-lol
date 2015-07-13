@@ -50,7 +50,7 @@ func (g *SimpleRESTGetter) Get(url string, v interface{}) error {
 	// we are nice, we close the Body
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode >= 400 {
 		return RESTError{Code: resp.StatusCode}
 	}
 
