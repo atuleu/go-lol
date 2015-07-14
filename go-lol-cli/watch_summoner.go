@@ -71,6 +71,9 @@ func (x *WatchSummonerCommand) Execute(args []string) error {
 				return err
 			}
 
+			// adds replay info
+			replay.AddGameInfo(*currentGame)
+
 			err = i.manager.Store(replay)
 			if err != nil {
 				return err
