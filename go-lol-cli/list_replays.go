@@ -1,6 +1,10 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/atuleu/go-lol/x-go-lol"
+)
 
 type ListReplaysCommand struct {
 	RegionCode string `long:"region" short:"r" description:"region to use for looking up summoners" default:"euw"`
@@ -16,6 +20,11 @@ func (x *ListReplaysCommand) Execute(args []string) error {
 		return err
 	}
 
+	printer, err := xlol.NewReplayPrinter(i.region, i.key)
+	if err != nil {
+		return err
+	}
+
 	byCode := i.manager.Replays()
 
 	replays := byCode[x.RegionCode]
@@ -25,8 +34,9 @@ func (x *ListReplaysCommand) Execute(args []string) error {
 	}
 
 	fmt.Printf("There are %d replay available for %s:\n", len(replays), x.RegionCode)
-	for i, r := range replays {
-		fmt.Printf("  * %d : Game %d started at %s\n", i+1, r.MetaData.GameKey.ID, r.MetaData.CreateTime)
+	for _, r := range replays {
+		printer.Display(r)
+		fmt.Printf("\n")
 	}
 
 	return nil
