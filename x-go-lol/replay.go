@@ -285,6 +285,10 @@ func (r *Replay) MergeFromLastChunkInfo(ci LastChunkInfo) {
 
 	}
 
+	if ci.AssociatedKeyFrameID == 0 {
+		return
+	}
+
 	kfIdx, ok := r.keyframeByID[ci.AssociatedKeyFrameID]
 	if ok == false {
 		res := KeyFrame{
@@ -302,7 +306,10 @@ func (r *Replay) MergeFromLastChunkInfo(ci LastChunkInfo) {
 		}
 
 		r.addKeyFrame(res)
-		kfIdx = r.keyframeByID[ci.AssociatedKeyFrameID]
+		kfIdx, ok = r.keyframeByID[ci.AssociatedKeyFrameID]
+		if ok == false {
+			return
+		}
 	} else {
 		if len(r.KeyFrames[kfIdx].Chunks) == 0 {
 			r.KeyFrames[kfIdx].Chunks = r.appendSortedIfUnique(r.KeyFrames[kfIdx].Chunks, ci.NextChunkID)

@@ -1,7 +1,7 @@
 package lol
 
 // QueueID uniquely represents a Queue
-type QueueID uint64
+type QueueID int64
 
 const (
 	// CUSTOM represents Custom games
@@ -75,7 +75,7 @@ const (
 )
 
 // A MapID uniquely represents a Map
-type MapID uint64
+type MapID int64
 
 /*const (
 	// Original Summer Variant

@@ -10,13 +10,13 @@ type FeaturedGameInfo struct {
 		Team     int        `json:"teamID"`
 	} `json:"bannedChampions"`
 
-	ID            GameID  `json:"gameId"`
-	GameLength    uint64  `json:"GameLength"`
-	GameMode      string  `json:"gameMode"`
-	GameQueue     QueueID `json:"gameQueueConfigId"`
-	GameStartTime uint64  `json:"gameStartTime"`
-	GameType      string  `json:"gameType"`
-	Map           MapID   `json:"mapId"`
+	ID            GameID           `json:"gameId"`
+	GameLength    int64            `json:"GameLength"`
+	GameMode      string           `json:"gameMode"`
+	GameQueue     QueueID          `json:"gameQueueConfigId"`
+	GameStartTime EpochMillisecond `json:"gameStartTime"`
+	GameType      string           `json:"gameType"`
+	Map           MapID            `json:"mapId"`
 
 	Observer struct {
 		EncryptionKey string `json:"encryptionKey"`
@@ -27,7 +27,7 @@ type FeaturedGameInfo struct {
 		Name        string     `json:"summonerName"`
 		Bot         bool       `json:"bot"`
 		Champion    ChampionID `json:"championId"`
-		ProfileIcon uint64     `json:"profileIconId"`
+		ProfileIcon int64      `json:"profileIconId"`
 
 		SummonerSpell1 SummonerSpellID `json:"spell1Id"`
 		SummonerSpell2 SummonerSpellID `json:"spell2Id"`
