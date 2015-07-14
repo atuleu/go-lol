@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"reflect"
 	"sort"
+
+	"github.com/atuleu/go-lol"
 )
 
 // A Chunk represent data modification of a Replay between frames
@@ -107,6 +109,11 @@ type Replay struct {
 	Version string
 	//Encryption Key used by the data
 	EncryptionKey string
+	//GameInfo contains the GameInformation
+	GameInfo lol.CurrentGameInfo
+
+	// PlayerOfInterest
+	PlayerOfInterest lol.SummonerID
 }
 
 // NewEmptyReplay creates a new empty replay
@@ -632,4 +639,28 @@ func (r *Replay) KeyFrameByID(id KeyFrameID) (*KeyFrame, bool) {
 		return &(r.KeyFrames[kfidx]), true
 	}
 	return nil, false
+}
+
+// AddGameInfo adds game information for a
+func (r *Replay) AddGameInfo(info lol.CurrentGameInfo) {
+	r.GameInfo = info
+	// test if we miss champion name
+}
+
+// HighlightSummoner highlights a summonner name
+func (r *Replay) HighlightSummoner(id lol.SummonerID) error {
+	ok := false
+	for _, part := range r.GameInfo.Participants {
+		if part.ID == id {
+			ok = true
+			break
+		}
+	}
+
+	if ok == false {
+		return fmt.Errorf("Summoner (ID:%d) is not in the game", id)
+	}
+
+	r.PlayerOfInterest = id
+	return nil
 }
