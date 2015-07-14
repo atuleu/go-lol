@@ -116,6 +116,7 @@ var regionByID = map[RegionID]*Region{
 }
 
 var regionByCode map[string]*Region
+var regionByPlatformID map[string]*Region
 
 // NewRegion returns a region identified by its RegionID
 func NewRegion(id RegionID) (*Region, error) {
@@ -133,6 +134,16 @@ func NewRegionByCode(code string) (*Region, error) {
 	r, ok := regionByCode[code]
 	if ok == false {
 		return nil, fmt.Errorf("unknown RegionID %s", code)
+	}
+
+	return r, nil
+}
+
+// NewRegionByPlatformID returns a region from its PlatformID
+func NewRegionByPlatformID(id string) (*Region, error) {
+	r, ok := regionByPlatformID[id]
+	if ok == false {
+		return nil, fmt.Errorf("unknown Region PlatformID %s", id)
 	}
 
 	return r, nil
@@ -176,7 +187,12 @@ func AllDynamicRegion() []*Region {
 
 func init() {
 	regionByCode = make(map[string]*Region)
+	regionByPlatformID = make(map[string]*Region)
 	for _, r := range regionByID {
 		regionByCode[r.code] = r
+		if r.IsDynamic() == false {
+			continue
+		}
+		regionByPlatformID[r.platformID] = r
 	}
 }
