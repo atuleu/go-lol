@@ -75,26 +75,32 @@ func (p *ReplayPrinter) Display(r *Replay) {
 		}
 	}
 
-	colFormat := fmt.Sprintf(" %%%d%%s |", maxNameLength)
+	colFormat := fmt.Sprintf(" %%%ds |", maxNameLength)
 	//prints the blue team first
-	ansi.Printf("  |")
+	ansi.Printf("  ")
 	ansi.SetForeAndBackground(ansi.White, ansi.Blue)
+	ansi.Printf("|")
 	for _, p := range blueTeam {
 		ansi.Printf(colFormat, p.name)
 	}
-	ansi.Printf("\n  |")
-	ansi.SetForeAndBackground(ansi.Blue, ansi.White)
+	ansi.ResetColor()
+	ansi.Printf("\n  ")
+	ansi.SetForeAndBackground(ansi.Blue, ansi.Default)
+	ansi.Printf("|")
 	for _, p := range blueTeam {
 		ansi.Printf(colFormat, p.champion)
 	}
-
-	ansi.Printf("\n  |")
+	ansi.ResetColor()
+	ansi.Printf("\n  ")
 	ansi.SetForeAndBackground(ansi.White, ansi.Magenta)
+	ansi.Printf("|")
 	for _, p := range redTeam {
 		ansi.Printf(colFormat, p.name)
 	}
-	ansi.Printf("\n  |")
-	ansi.SetForeAndBackground(ansi.Magenta, ansi.White)
+	ansi.ResetColor()
+	ansi.Printf("\n  ")
+	ansi.SetForeAndBackground(ansi.Magenta, ansi.Default)
+	ansi.Printf("|")
 	for _, p := range redTeam {
 		ansi.Printf(colFormat, p.champion)
 	}
