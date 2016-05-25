@@ -5,7 +5,7 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/atuleu/go-lol"
+	"github.com/charlywazzap/go-lol"
 )
 
 type TestCommand struct {

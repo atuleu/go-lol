@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/atuleu/go-lol"
+	"github.com/charlywazzap/go-lol"
 )
 
 type SetAPIKeyCommand struct{}

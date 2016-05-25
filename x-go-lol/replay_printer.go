@@ -3,8 +3,8 @@ package xlol
 import (
 	"fmt"
 
-	"github.com/atuleu/go-ansi"
-	"github.com/atuleu/go-lol"
+	"github.com/charlywazzap/go-ansi"
+	"github.com/charlywazzap/go-lol"
 )
 
 // ReplayPrinter can be used to display Replay info on command line /

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/atuleu/go-lol/x-go-lol"
+	"github.com/charlywazzap/go-lol/x-go-lol"
 )
 
 type ListReplaysCommand struct {

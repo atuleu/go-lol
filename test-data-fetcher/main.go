@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/atuleu/go-lol"
+	"github.com/charlywazzap/go-lol"
 	"github.com/jessevdk/go-flags"
 )
 

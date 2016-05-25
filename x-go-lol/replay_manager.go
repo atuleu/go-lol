@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"sort"
 
-	"github.com/atuleu/go-lol"
+	"github.com/charlywazzap/go-lol"
 	"launchpad.net/go-xdg"
 )
 

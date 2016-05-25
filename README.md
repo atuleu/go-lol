@@ -1,6 +1,6 @@
 # go-lol
 
-[![GoDoc](https://godoc.org/github.com/atuleu/go-lol?status.svg)](https://godoc.org/github.com/atuleu/go-lol)
+[![GoDoc](https://godoc.org/github.com/charlywazzap/go-lol?status.svg)](https://godoc.org/github.com/charlywazzap/go-lol)
 
 Go binding for the official Riot Games League of Legend
 [API](https://developer.riotgames.com)

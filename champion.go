@@ -35,9 +35,32 @@ type Champion struct {
 		Num  int    `json:"num"`
 	} `json:"skins"`
 	Spells []struct{} `json:"spells"`
-	Stats  struct{}   `json:"stats"`
+	Stats  champStats `json:"stats"`
 	Tags   []string   `json:"tags"`
 	Title  string     `json:"title"`
+}
+
+type champStats struct {
+	Attackrange          float32 `json:"attackrange"`
+	Mpperlevel           float32 `json:"mpperlevel"`
+	Mp                   float32 `json:"mp"`
+	Attackdamage         float32 `json:"attackdamage"`
+	Hp                   float32 `json:"hp"`
+	Hpperlevel           float32 `json:"hpperlevel"`
+	Attackdamageperlevel float32 `json:"attackdamageperlevel"`
+	Armor                float32 `json:"armor"`
+	Mpregenperlevel      float32 `json:"mpregenperlevel"`
+	Hpregen              float32 `json:"hpregen"`
+	Critperlevel         float32 `json:"critperlevel"`
+	Spellblockperlevel   float32 `json:"spellblockperlevel"`
+	Mregen               float32 `json:"mregen"`
+	Attackspeedperlevel  float32 `json:"attackspeedperlevel"`
+	Spellblock           float32 `json:"spellblock"`
+	Movespeed            float32 `json:"movespeed"`
+	Attackspeedoffset    float32 `json:"attackspeedoffset"`
+	Crit                 float32 `json:"crit"`
+	Hpregenperlevel      float32 `json:"hpregenperlevel"`
+	Armorperlevel        float32 `json:"armorperlevel"`
 }
 
 // GetChampion returns the champion data for the current patch

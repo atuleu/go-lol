@@ -12,7 +12,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/atuleu/go-lol"
+	"github.com/charlywazzap/go-lol"
 )
 
 // SpectateAPI is an helper to use the REST api for spectate mode

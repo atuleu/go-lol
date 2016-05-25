@@ -14,7 +14,7 @@ accordingly in order for `go get` to work.
 Then simply run :
 
 ```bash
-go get -u github.com/atuleu/go-lol/go-lol-cli
+go get -u github.com/charlywazzap/go-lol/go-lol-cli
 ```
 
 You should be now able to run this :
