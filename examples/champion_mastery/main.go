@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/atuleu/go-lol"
+	"github.com/charlywazzap/go-lol"
 )
 
 func Execute() error {

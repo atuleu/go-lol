@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/atuleu/go-lol"
+	"github.com/charlywazzap/go-lol"
 )
 
 // A Chunk represent data modification of a Replay between frames

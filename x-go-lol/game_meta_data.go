@@ -1,6 +1,6 @@
 package xlol
 
-import "github.com/atuleu/go-lol"
+import "github.com/charlywazzap/go-lol"
 
 // A ChunkID identifies a Chunk in a game stream
 type ChunkID int

@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/atuleu/go-lol"
+	"github.com/charlywazzap/go-lol"
 )
 
 type GarbageCollectCommand struct {
